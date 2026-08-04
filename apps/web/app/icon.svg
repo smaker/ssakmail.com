@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>싹메일</title>
+  <rect width="64" height="64" rx="16" fill="#18351f"/>
+  <path d="M17 21h30v23H17z" fill="#f4f8f0"/>
+  <path d="m18 23 14 12 14-12" fill="none" stroke="#52a447" stroke-width="4"/>
+</svg>

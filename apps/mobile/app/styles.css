@@ -1,0 +1,95 @@
+:root {
+  color-scheme: light;
+  font-family: Arial, "Apple SD Gothic Neo", sans-serif;
+  background: #e9f2e2;
+  color: #17361e;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  width: min(100%, 480px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 22px;
+  background: #f8fbf5;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+header strong {
+  font-size: 23px;
+  letter-spacing: -1px;
+}
+header span {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #e1f0d8;
+  color: #52744f;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.phone-card {
+  margin-top: 80px;
+  padding: 34px 28px;
+  border-radius: 30px;
+  background: #dff1d3;
+  box-shadow: 0 22px 60px rgba(46, 83, 45, 0.13);
+}
+.eyebrow {
+  color: #4c7849;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+h1 {
+  margin: 16px 0;
+  font-size: 54px;
+  line-height: 1.02;
+  letter-spacing: -0.06em;
+}
+.intro {
+  color: #587059;
+  font-size: 16px;
+  line-height: 1.65;
+}
+.status-card {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 28px;
+  padding: 12px 15px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9aab9c;
+  box-shadow: 0 0 0 4px #e2e9df;
+}
+.status-dot--ready {
+  background: #52a447;
+  box-shadow: 0 0 0 4px #cae6c3;
+}
+.status-dot--error {
+  background: #c44a42;
+  box-shadow: 0 0 0 4px #f3d7d4;
+}
+@media (min-width: 481px) {
+  body {
+    padding: 28px 0;
+  }
+  main {
+    min-height: calc(100vh - 56px);
+    border-radius: 34px;
+    box-shadow: 0 20px 70px rgba(32, 67, 38, 0.18);
+  }
+}

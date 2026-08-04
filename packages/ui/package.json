@@ -1,0 +1,21 @@
+{
+  "name": "@ssakmail/ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "dependencies": {
+    "@ssakmail/data-access": "workspace:*",
+    "@tanstack/react-query": "5.101.4",
+    "react": "19.2.8"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "typescript": "7.0.2"
+  }
+}

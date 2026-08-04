@@ -1,0 +1,22 @@
+{
+  "name": "ssakmail.com",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "build": "pnpm --recursive --if-present build",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "dev": "pnpm --parallel --filter './apps/*' dev",
+    "test": "vitest run",
+    "typecheck": "pnpm --recursive --if-present typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.7",
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}
