@@ -3,6 +3,8 @@
 import { statusQueryOptions } from "@ssakmail/data-access";
 import { useQuery } from "@tanstack/react-query";
 
+export { MailApp, mailViewState } from "./mail";
+
 export const statusPresentation = (
   state: "pending" | "error" | "ready",
   app?: string,

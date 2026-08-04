@@ -83,6 +83,126 @@ h1 {
   background: #c44a42;
   box-shadow: 0 0 0 4px #f3d7d4;
 }
+.mail-state {
+  margin-top: 28px;
+  padding: 20px;
+  border-radius: 20px;
+  background: white;
+}
+button {
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #285c31;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.button-secondary {
+  background: #e3ece0;
+  color: #26452d;
+}
+.button-danger {
+  background: #aa3029;
+}
+.mail-shell {
+  margin-top: 28px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: white;
+  box-shadow: 0 14px 44px rgba(38, 70, 40, 0.12);
+}
+.mail-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #e2e9df;
+}
+.mail-toolbar div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.mail-toolbar small {
+  overflow: hidden;
+  color: #687b6a;
+  text-overflow: ellipsis;
+}
+.mail-content {
+  min-height: 440px;
+}
+.message-list,
+.message-detail {
+  padding: 18px;
+}
+.message-row {
+  display: grid;
+  width: 100%;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 14px;
+  text-align: left;
+  background: #f2f7ef;
+  color: #18351f;
+}
+.message-row span,
+.message-row small {
+  overflow: hidden;
+  color: #607263;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.message-list--selected {
+  display: none;
+}
+.message-detail {
+  display: none;
+}
+.message-detail--open {
+  display: block;
+}
+.back-button {
+  margin-bottom: 22px;
+}
+.detail-empty {
+  color: #728175;
+  text-align: center;
+}
+.message-from,
+.message-detail time {
+  color: #607263;
+  font-size: 13px;
+}
+.message-body {
+  min-height: 150px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e9df;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+.message-actions,
+.dialog-actions {
+  display: flex;
+  gap: 9px;
+  justify-content: flex-end;
+}
+dialog {
+  width: calc(100% - 40px);
+  max-width: 390px;
+  padding: 24px;
+  border: 0;
+  border-radius: 22px;
+  box-shadow: 0 24px 80px rgba(20, 45, 24, 0.28);
+}
+dialog::backdrop {
+  background: rgba(14, 30, 17, 0.5);
+}
 @media (min-width: 481px) {
   body {
     padding: 28px 0;

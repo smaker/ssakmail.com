@@ -1,4 +1,4 @@
-import { StatusCard } from "@ssakmail/ui";
+import { MailApp } from "@ssakmail/ui";
 
 export default function Home() {
   return (
@@ -17,7 +17,7 @@ export default function Home() {
         <p className="intro">
           작은 화면에서도 읽기 쉽고 빠른 메일 경험을 준비하고 있습니다.
         </p>
-        <StatusCard />
+        <MailApp variant="mobile" />
       </section>
     </main>
   );

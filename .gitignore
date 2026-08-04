@@ -1,6 +1,9 @@
 node_modules
 .next
+.open-next
+.wrangler
 .vercel
+.dev.vars
 coverage
 *.tsbuildinfo
 .DS_Store

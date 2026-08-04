@@ -1,7 +1,7 @@
-import { QueryProvider } from "@ssakmail/data-access";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./styles.css";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "싹메일 | ssakmail.com",
@@ -14,7 +14,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        <QueryProvider>{children}</QueryProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

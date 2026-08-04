@@ -10,7 +10,9 @@
     "moduleResolution": "bundler",
     "noEmit": true,
     "paths": {
+      "@ssakmail/auth": ["./packages/auth/src/index.ts"],
       "@ssakmail/data-access": ["./packages/data-access/src/index.tsx"],
+      "@ssakmail/gmail": ["./packages/gmail/src/index.ts"],
       "@ssakmail/ui": ["./packages/ui/src/index.tsx"]
     },
     "resolveJsonModule": true,

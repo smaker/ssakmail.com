@@ -1,11 +1,11 @@
-import { StatusCard } from "@ssakmail/ui";
+import { MailApp } from "@ssakmail/ui";
 
 export default function Home() {
   return (
     <main>
       <nav>
         <strong>싹메일</strong>
-        <span>ssakmail.com</span>
+        <span className="site-domain">ssakmail.com</span>
       </nav>
       <div className="hero">
         <p className="eyebrow">SIMPLE MAIL, CLEAR MESSAGE</p>
@@ -16,7 +16,7 @@ export default function Home() {
         <p className="intro">
           웹과 모바일에서 같은 경험으로 시작하는 싹메일입니다.
         </p>
-        <StatusCard />
+        <MailApp variant="web" />
       </div>
     </main>
   );

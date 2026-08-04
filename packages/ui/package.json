@@ -8,7 +8,10 @@
   },
   "dependencies": {
     "@ssakmail/data-access": "workspace:*",
+    "@ssakmail/gmail": "workspace:*",
     "@tanstack/react-query": "5.101.4",
+    "axios": "1.19.0",
+    "next-auth": "4.24.15",
     "react": "19.2.8"
   },
   "scripts": {
