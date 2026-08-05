@@ -158,6 +158,35 @@ button:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.message-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 12px;
+  padding: 0;
+  border: 0;
+}
+.message-filters legend {
+  margin-bottom: 7px;
+  color: #607263;
+  font-size: 12px;
+}
+.message-filters [aria-pressed="true"] {
+  background: #dcefd5;
+}
+.candidate-badge {
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #fff0bf;
+  color: #684f00;
+  font-size: 11px;
+  font-style: normal;
+}
+.candidate-badge--payment {
+  background: #dcefd5;
+  color: #28572a;
+}
 .message-list--selected {
   display: none;
 }

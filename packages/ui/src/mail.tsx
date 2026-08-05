@@ -1,12 +1,36 @@
 "use client";
 
-import type { MessageDetail, MessageSummary } from "@ssakmail/gmail";
+import type {
+  CleanupCategory,
+  MessageDetail,
+  MessageSummary,
+} from "@ssakmail/gmail";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRef, useState } from "react";
 
 const GMAIL_SCOPE = "https://mail.google.com/";
+type MailFilter = "all" | "cleanup" | CleanupCategory;
+
+export const filterMessages = <T extends { category: CleanupCategory }>(
+  messages: readonly T[],
+  filter: MailFilter,
+) =>
+  filter === "all"
+    ? messages
+    : messages.filter((message) =>
+        filter === "cleanup"
+          ? message.category !== "other"
+          : message.category === filter,
+      );
+
+const categoryLabel = (category: CleanupCategory) =>
+  category === "advertisement"
+    ? "광고"
+    : category === "payment"
+      ? "결제 완료"
+      : undefined;
 
 export const mailViewState = (
   status: "loading" | "authenticated" | "unauthenticated",
@@ -43,6 +67,7 @@ const messageDate = (value: string) =>
 export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const { data: session, status } = useSession();
   const [selectedId, setSelectedId] = useState<string>();
+  const [filter, setFilter] = useState<MailFilter>("all");
   const deleteDialog = useRef<HTMLDialogElement>(null);
   const queryClient = useQueryClient();
   const gmail = (
@@ -82,8 +107,12 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const trash = useMutation({
     mutationFn: (id: string) =>
       axios.post(`/api/gmail/messages/${encodeURIComponent(id)}/trash`),
-    onSuccess: (_, id) => removeMessage(id),
+    onSuccess: (_, id) => {
+      deleteDialog.current?.close();
+      removeMessage(id);
+    },
   });
+  const filteredMessages = filterMessages(messages.data ?? [], filter);
   const permanentlyDelete = useMutation({
     mutationFn: (id: string) =>
       axios.delete(`/api/gmail/messages/${encodeURIComponent(id)}/delete`),
@@ -148,6 +177,27 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
           className={`message-list ${selectedId ? "message-list--selected" : ""}`}
         >
           <h2>받은편지함</h2>
+          <fieldset className="message-filters">
+            <legend>메일 필터</legend>
+            {(
+              [
+                ["all", "전체"],
+                ["cleanup", "정리 추천"],
+                ["advertisement", "광고"],
+                ["payment", "결제 완료"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                className="button-secondary"
+                type="button"
+                aria-pressed={filter === value}
+                key={value}
+                onClick={() => setFilter(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </fieldset>
           {messages.isPending && <p role="status">메일을 불러오는 중</p>}
           {messages.isError && (
             <div role="alert">
@@ -158,7 +208,10 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
             </div>
           )}
           {messages.data?.length === 0 && <p>받은편지함이 비어 있습니다.</p>}
-          {messages.data?.map((message) => (
+          {messages.data && filteredMessages.length === 0 && (
+            <p>이 조건에 맞는 메일이 없습니다.</p>
+          )}
+          {filteredMessages.map((message) => (
             <button
               className="message-row"
               key={message.id}
@@ -167,6 +220,13 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               onClick={() => setSelectedId(message.id)}
             >
               <strong>{message.subject}</strong>
+              {categoryLabel(message.category) && (
+                <em
+                  className={`candidate-badge candidate-badge--${message.category}`}
+                >
+                  {categoryLabel(message.category)}
+                </em>
+              )}
               <span>{message.from}</span>
               <small>{messageDate(message.date)}</small>
             </button>
@@ -203,20 +263,11 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
                 <button
                   type="button"
                   disabled={trash.isPending || permanentlyDelete.isPending}
-                  onClick={() =>
-                    window.confirm("이 메일을 휴지통으로 이동할까요?") &&
-                    trash.mutate(detail.data.id)
-                  }
-                >
-                  휴지통으로 이동
-                </button>
-                <button
-                  className="button-danger"
-                  type="button"
-                  disabled={trash.isPending || permanentlyDelete.isPending}
                   onClick={() => deleteDialog.current?.showModal()}
                 >
-                  영구 삭제
+                  {detail.data.category === "other"
+                    ? "삭제 방법 선택"
+                    : `${categoryLabel(detail.data.category)} 메일 삭제 검토`}
                 </button>
               </div>
               {(trash.isError || permanentlyDelete.isError) && (
@@ -229,11 +280,19 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
         </article>
       </div>
       <dialog ref={deleteDialog} aria-labelledby="delete-title">
-        <h2 id="delete-title">메일을 영구 삭제할까요?</h2>
-        <p>이 작업은 취소하거나 복구할 수 없습니다.</p>
+        <h2 id="delete-title">이 메일을 삭제할까요?</h2>
+        <p>{detail.data?.subject}</p>
+        <p>휴지통은 복구할 수 있지만 영구 삭제는 취소할 수 없습니다.</p>
         <div className="dialog-actions">
           <button type="button" onClick={() => deleteDialog.current?.close()}>
             취소
+          </button>
+          <button
+            type="button"
+            disabled={trash.isPending || permanentlyDelete.isPending}
+            onClick={() => detail.data && trash.mutate(detail.data.id)}
+          >
+            {trash.isPending ? "이동 중" : "휴지통으로 이동"}
           </button>
           <button
             className="button-danger"

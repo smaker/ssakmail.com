@@ -1,6 +1,7 @@
 import axios from "axios";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  classifyMessage,
   decodeBody,
   deleteMessage,
   extractBody,
@@ -31,6 +32,38 @@ describe("Gmail response helpers", () => {
       subject: "Hello",
       snippet: "preview",
     });
+  });
+
+  it.each([
+    [
+      {
+        subject: "(광고) 여름 할인 쿠폰을 확인하세요",
+        from: "newsletter@example.com",
+        snippet: "수신 거부",
+        labelIds: ["CATEGORY_PROMOTIONS"],
+      },
+      "advertisement",
+    ],
+    [
+      {
+        subject: "결제 완료 및 영수증 안내",
+        from: "payments@example.com",
+        snippet: "결제금액 12,000원 주문번호 A123",
+        labelIds: [],
+      },
+      "payment",
+    ],
+    [
+      {
+        subject: "결제 실패 안내",
+        from: "payments@example.com",
+        snippet: "카드를 다시 확인해주세요",
+        labelIds: [],
+      },
+      "other",
+    ],
+  ] as const)("classifies cleanup candidates as %s", (message, expected) => {
+    expect(classifyMessage(message)).toBe(expected);
   });
 
   it("decodes URL-safe Gmail bodies", () => {

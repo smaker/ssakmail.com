@@ -145,6 +145,35 @@ button:disabled {
   background: #dcefd5;
   box-shadow: inset 3px 0 #4d8c4a;
 }
+.message-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 0;
+  border: 0;
+}
+.message-filters legend {
+  margin-bottom: 8px;
+  color: #607263;
+  font-size: 13px;
+}
+.message-filters [aria-pressed="true"] {
+  background: #dcefd5;
+}
+.candidate-badge {
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #fff0bf;
+  color: #684f00;
+  font-size: 12px;
+  font-style: normal;
+}
+.candidate-badge--payment {
+  background: #dcefd5;
+  color: #28572a;
+}
 .message-row span,
 .message-row small {
   overflow: hidden;

@@ -14,8 +14,11 @@ type GmailMessage = {
   threadId?: string;
   snippet?: string;
   internalDate?: string;
+  labelIds?: string[];
   payload?: GmailPart;
 };
+
+export type CleanupCategory = "advertisement" | "payment" | "other";
 
 export type MessageSummary = {
   id: string;
@@ -24,6 +27,7 @@ export type MessageSummary = {
   subject: string;
   date: string;
   snippet: string;
+  category: CleanupCategory;
 };
 
 export type MessageDetail = MessageSummary & { body: string };
@@ -74,14 +78,49 @@ export const extractBody = (part?: GmailPart) => {
     .trim();
 };
 
-export const mapMessage = (message: GmailMessage): MessageSummary => ({
-  id: message.id ?? "",
-  threadId: message.threadId ?? "",
-  from: header(message, "From") || "알 수 없는 발신자",
-  subject: header(message, "Subject") || "제목 없음",
-  date: message.internalDate ?? "",
-  snippet: message.snippet ?? "",
-});
+export const classifyMessage = (message: {
+  subject: string;
+  from: string;
+  snippet: string;
+  labelIds?: readonly string[];
+}): CleanupCategory => {
+  const text = `${message.subject} ${message.from} ${message.snippet}`;
+  if (
+    /(결제 실패|결제 거부|승인 실패|payment failed|declined|환불|refund)/i.test(
+      text,
+    )
+  )
+    return "other";
+  if (
+    /(결제 완료|결제 승인|구매 완료|주문 완료|영수증|payment confirmation|payment complete|receipt)/i.test(
+      text,
+    )
+  )
+    return "payment";
+  if (
+    message.labelIds?.includes("CATEGORY_PROMOTIONS") ||
+    /(\(광고\)|\[광고\]|할인|쿠폰|프로모션|이벤트|newsletter|수신 ?거부|unsubscribe)/i.test(
+      text,
+    )
+  )
+    return "advertisement";
+  return "other";
+};
+
+export const mapMessage = (message: GmailMessage): MessageSummary => {
+  const summary = {
+    id: message.id ?? "",
+    threadId: message.threadId ?? "",
+    from: header(message, "From") || "알 수 없는 발신자",
+    subject: header(message, "Subject") || "제목 없음",
+    date: message.internalDate ?? "",
+    snippet: message.snippet ?? "",
+  };
+  return {
+    ...summary,
+    category: classifyMessage({ ...summary, labelIds: message.labelIds }),
+  };
+};
 
 export const normalizeGmailError = (error: unknown) => {
   const providerStatus =
