@@ -32,3 +32,20 @@ MORE CLI:
   swizzle <Name>     eject component source for deep customization
   upgrade --apply    run after any @astryxdesign/core bump
 <!-- ASTRYX:END -->
+
+## 커밋 메시지 규칙
+
+- Conventional Commits 형식인 `<type>(<scope>): <한국어 요약>`을 사용한다. `scope`는 생략할 수 있다.
+- `type`은 `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `build`, `ci`, `perf`, `revert` 중에서 선택한다.
+- 요약은 변경 결과를 한국어 명령형으로 간결하게 작성하고 마침표를 붙이지 않는다.
+- 커밋 하나에는 하나의 논리적 변경만 담는다.
+- 본문이 필요하면 빈 줄 뒤에 변경 이유와 영향을 한국어로 작성한다.
+- 호환성을 깨는 변경은 본문 또는 푸터에 `BREAKING CHANGE:`를 명시한다.
+
+예시:
+
+```text
+feat(ui): 동의 체크박스를 Astryx 컴포넌트로 교체
+fix(auth): 만료된 세션 재사용 방지
+docs: 커밋 메시지 규칙 추가
+```
