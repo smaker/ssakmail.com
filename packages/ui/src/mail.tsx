@@ -46,7 +46,25 @@ const categoryLabel = (category: CleanupCategory) =>
     ? "광고"
     : category === "payment"
       ? "결제 완료"
-      : undefined;
+      : category === "smishing"
+        ? "스미싱 의심"
+        : undefined;
+
+export const emailHtmlDocument = (html: string, showImages: boolean) => {
+  const content = html
+    .replace(/<(?:meta|base)\b[^>]*>/gi, "")
+    .replace(/<img\b[^>]*>/gi, (image) =>
+      showImages
+        ? image
+        : image.replace(
+            /\s(src|srcset)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
+            (attribute) =>
+              attribute.replace(/^(\s*)(src|srcset)/i, "$1data-ssakmail-$2"),
+          ),
+    );
+  return `<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; img-src ${showImages ? "https: data:" : "'none'"}; style-src 'unsafe-inline'; font-src 'none'; media-src 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'"><style>html{color-scheme:light dark}body{margin:0;overflow-wrap:anywhere}${showImages ? "" : "img{display:none!important}"}</style></head><body>${content}</body></html>`;
+};
 
 export const preferenceLabel = (score: number) =>
   score >= 70 ? "선호 가능성 높음" : score >= 40 ? "확인 필요" : "정리 추천";
@@ -87,6 +105,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const { data: session, status } = useSession();
   const [selectedId, setSelectedId] = useState<string>();
   const [filter, setFilter] = useState<MailFilter>("all");
+  const [showImages, setShowImages] = useState(false);
   const [aiProcessingConsent, setAiProcessingConsent] = useState(false);
   const [overseasTransferConsent, setOverseasTransferConsent] = useState(false);
   const deleteDialog = useRef<HTMLDialogElement>(null);
@@ -185,6 +204,10 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
     },
   });
   const filteredMessages = filterMessages(messages.data ?? [], filter);
+  const selectMessage = (id?: string) => {
+    setShowImages(false);
+    setSelectedId(id);
+  };
   const permanentlyDelete = useMutation({
     mutationFn: async (id: string) => {
       if (consent.data?.consented)
@@ -332,6 +355,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
                 ["cleanup", "정리 추천"],
                 ["advertisement", "광고"],
                 ["payment", "결제 완료"],
+                ["smishing", "스미싱 의심"],
               ] as const
             ).map(([value, label]) => (
               <Button
@@ -381,7 +405,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               className="message-row"
               key={message.id}
               aria-pressed={selectedId === message.id}
-              onClick={() => setSelectedId(message.id)}
+              onClick={() => selectMessage(message.id)}
             >
               <strong>{message.subject}</strong>
               {categoryLabel(message.category) && (
@@ -405,7 +429,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               variant="secondary"
               size="sm"
               className="back-button"
-              onClick={() => setSelectedId(undefined)}
+              onClick={() => selectMessage()}
             />
           )}
           {!selectedId && (
@@ -420,9 +444,29 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               <p className="message-from">{detail.data.from}</p>
               <h2>{detail.data.subject}</h2>
               <time>{messageDate(detail.data.date)}</time>
-              <p className="message-body">
-                {detail.data.body || detail.data.snippet}
-              </p>
+              {detail.data.htmlBody ? (
+                <section className="message-body">
+                  {/<img\b/i.test(detail.data.htmlBody) && (
+                    <Button
+                      label={showImages ? "이미지 숨기기" : "이미지 보기"}
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowImages((visible) => !visible)}
+                    />
+                  )}
+                  <iframe
+                    className="message-html"
+                    title="메일 HTML 본문"
+                    sandbox=""
+                    referrerPolicy="no-referrer"
+                    srcDoc={emailHtmlDocument(detail.data.htmlBody, showImages)}
+                  />
+                </section>
+              ) : (
+                <p className="message-body">
+                  {detail.data.body || detail.data.snippet}
+                </p>
+              )}
               {consent.data?.consented && (
                 <section className="recommendation-card" aria-live="polite">
                   {recommendation.isPending && <p>개인화 추천 분석 중</p>}

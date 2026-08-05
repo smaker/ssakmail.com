@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { filterMessages, mailViewState, preferenceLabel } from "./mail";
+import {
+  emailHtmlDocument,
+  filterMessages,
+  mailViewState,
+  preferenceLabel,
+} from "./mail";
 
 describe("mail view state", () => {
   it.each([
@@ -26,17 +31,54 @@ describe("cleanup filters", () => {
   const messages = [
     { id: "ad", category: "advertisement" },
     { id: "paid", category: "payment" },
+    { id: "smishing", category: "smishing" },
     { id: "normal", category: "other" },
   ] as const;
 
   it.each([
-    ["all", ["ad", "paid", "normal"]],
-    ["cleanup", ["ad", "paid"]],
+    ["all", ["ad", "paid", "smishing", "normal"]],
+    ["cleanup", ["ad", "paid", "smishing"]],
     ["advertisement", ["ad"]],
     ["payment", ["paid"]],
+    ["smishing", ["smishing"]],
   ] as const)("shows %s messages", (filter, expected) => {
     expect(filterMessages(messages, filter).map(({ id }) => id)).toEqual(
       expected,
     );
+  });
+});
+
+describe("safe email HTML document", () => {
+  const html =
+    '<p>Hello <a href="https://example.com">mail</a><img src="https://example.com/pixel"></p>';
+
+  it("blocks and hides images by default", () => {
+    const document = emailHtmlDocument(html, false);
+
+    expect(document).toContain("img-src 'none'");
+    expect(document).toContain("img{display:none!important}");
+    expect(document).toContain('<a href="https://example.com">mail</a>');
+    expect(document).not.toContain('<img src="https://example.com/pixel"');
+    expect(document).toContain(
+      '<img data-ssakmail-src="https://example.com/pixel"',
+    );
+  });
+
+  it("removes document controls that can navigate without a click", () => {
+    const document = emailHtmlDocument(
+      '<meta http-equiv="refresh" content="0;url=https://tracker.example"><base href="https://tracker.example"><a href="https://example.com">mail</a>',
+      false,
+    );
+
+    expect(document).not.toMatch(/http-equiv="refresh"|<base\b/i);
+    expect(document).toContain('<a href="https://example.com">mail</a>');
+  });
+
+  it("allows visible HTTPS images only after opt-in", () => {
+    const document = emailHtmlDocument(html, true);
+
+    expect(document).toContain("img-src https: data:");
+    expect(document).not.toContain("img{display:none}");
+    expect(document).toContain('<img src="https://example.com/pixel"');
   });
 });

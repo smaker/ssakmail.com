@@ -274,6 +274,12 @@ h1 {
   line-height: 1.7;
   white-space: pre-wrap;
 }
+.message-html {
+  width: 100%;
+  min-height: 50vh;
+  margin-top: var(--spacing-3);
+  border: 0;
+}
 .message-actions,
 .dialog-actions {
   display: flex;

@@ -18,7 +18,11 @@ type GmailMessage = {
   payload?: GmailPart;
 };
 
-export type CleanupCategory = "advertisement" | "payment" | "other";
+export type CleanupCategory =
+  | "advertisement"
+  | "payment"
+  | "smishing"
+  | "other";
 
 export type MessageSummary = {
   id: string;
@@ -30,7 +34,7 @@ export type MessageSummary = {
   category: CleanupCategory;
 };
 
-export type MessageDetail = MessageSummary & { body: string };
+export type MessageDetail = MessageSummary & { body: string; htmlBody: string };
 
 export class GmailError extends Error {
   constructor(
@@ -78,6 +82,9 @@ export const extractBody = (part?: GmailPart) => {
     .trim();
 };
 
+export const extractHtmlBody = (part?: GmailPart) =>
+  findPart(part, "text/html");
+
 export const classifyMessage = (message: {
   subject: string;
   from: string;
@@ -85,6 +92,20 @@ export const classifyMessage = (message: {
   labelIds?: readonly string[];
 }): CleanupCategory => {
   const text = `${message.subject} ${message.from} ${message.snippet}`;
+  const hasLink = /(https?:\/\/|www\.|(?:bit\.ly|tinyurl\.com|t\.co)\/)/i.test(
+    text,
+  );
+  const namesSmishing = /(스미싱|피싱|smishing|phishing)/i.test(text);
+  const reportedSmishing =
+    namesSmishing &&
+    /(피해.{0,8}(발생|신고)|악성.{0,8}(메시지|링크|앱)|사기.{0,8}(피해|발생)|감염)/i.test(
+      text,
+    );
+  const securityAwareness =
+    namesSmishing &&
+    /(예방|주의|대처|교육|신고|안내|방지|의심|탐지|보호|보안 (?:소식|뉴스))/i.test(
+      text,
+    );
   if (
     /(결제 실패|결제 거부|승인 실패|payment failed|declined|환불|refund)/i.test(
       text,
@@ -97,6 +118,16 @@ export const classifyMessage = (message: {
     )
   )
     return "payment";
+  if (
+    reportedSmishing ||
+    (!securityAwareness &&
+      hasLink &&
+      (namesSmishing ||
+        /((택배|배송|배송지).{0,12}(주소.{0,4}(오류|불일치)|반송|실패|중단|재배송|확인 (?:필요|요청))|과태료|범칙금|계정.{0,8}(잠금|정지)|본인.{0,4}인증|보안.{0,4}확인)/i.test(
+          text,
+        )))
+  )
+    return "smishing";
   if (
     message.labelIds?.includes("CATEGORY_PROMOTIONS") ||
     /(\(광고\)|\[광고\]|할인|쿠폰|프로모션|이벤트|newsletter|수신 ?거부|unsubscribe)/i.test(
@@ -190,7 +221,11 @@ export async function getMessage(
         params: { format: "full" },
       },
     );
-    return { ...mapMessage(data), body: extractBody(data.payload) };
+    return {
+      ...mapMessage(data),
+      body: extractBody(data.payload),
+      htmlBody: extractHtmlBody(data.payload),
+    };
   } catch (error) {
     throw normalizeGmailError(error);
   }
