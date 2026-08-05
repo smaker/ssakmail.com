@@ -6,8 +6,12 @@ import {
   deleteMessage,
   extractBody,
   extractHtmlBody,
+  getOrCreateLabel,
+  listMessagesByLabel,
   mapMessage,
+  moveToAutoOrganizedLabel,
   normalizeGmailError,
+  restoreFromAutoOrganizedLabel,
   trashMessage,
 } from "./index";
 
@@ -182,5 +186,91 @@ describe("Gmail response helpers", () => {
     expect(
       String(remove.mock.calls[0]?.[0]).endsWith("/messages/message%2Fid"),
     ).toBe(true);
+  });
+
+  it("lists messages by an arbitrary Gmail label", async () => {
+    const get = vi.spyOn(axios, "get").mockResolvedValueOnce({
+      data: { messages: [{ id: "m1" }] },
+    });
+    get.mockResolvedValueOnce({
+      data: {
+        id: "m1",
+        payload: {
+          headers: [
+            { name: "From", value: "a@example.com" },
+            { name: "Subject", value: "Subject" },
+          ],
+        },
+      },
+    });
+
+    await expect(
+      listMessagesByLabel("access", "Label_1", 7),
+    ).resolves.toHaveLength(1);
+    expect(get.mock.calls[0]?.[1]).toMatchObject({
+      params: { maxResults: 7, labelIds: "Label_1" },
+    });
+  });
+
+  it("finds an existing label without creating a duplicate", async () => {
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: { labels: [{ id: "Label_1", name: "싹메일 자동정리함" }] },
+    });
+    const post = vi.spyOn(axios, "post");
+
+    await expect(getOrCreateLabel("access")).resolves.toMatchObject({
+      id: "Label_1",
+    });
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("creates the custom label when it does not exist", async () => {
+    vi.spyOn(axios, "get").mockResolvedValue({ data: { labels: [] } });
+    const post = vi.spyOn(axios, "post").mockResolvedValue({
+      data: { id: "Label_1", name: "싹메일 자동정리함" },
+    });
+
+    await expect(getOrCreateLabel("access")).resolves.toMatchObject({
+      id: "Label_1",
+    });
+    expect(post.mock.calls[0]?.[1]).toMatchObject({
+      name: "싹메일 자동정리함",
+    });
+  });
+
+  it("reuses a label created by a concurrent request", async () => {
+    vi.spyOn(axios, "get")
+      .mockResolvedValueOnce({ data: { labels: [] } })
+      .mockResolvedValueOnce({
+        data: { labels: [{ id: "Label_1", name: "싹메일 자동정리함" }] },
+      });
+    vi.spyOn(axios, "post").mockRejectedValue({ response: { status: 409 } });
+
+    await expect(getOrCreateLabel("access")).resolves.toMatchObject({
+      id: "Label_1",
+    });
+  });
+
+  it("organizes and restores a message with one Gmail modify call", async () => {
+    const post = vi
+      .spyOn(axios, "post")
+      .mockResolvedValueOnce({ data: { labelIds: ["Label_1"] } })
+      .mockResolvedValueOnce({ data: { labelIds: ["INBOX"] } });
+
+    await expect(
+      moveToAutoOrganizedLabel("access", "message/id", "Label_1"),
+    ).resolves.toEqual(["Label_1"]);
+    await expect(
+      restoreFromAutoOrganizedLabel("access", "message/id", "Label_1"),
+    ).resolves.toEqual(["INBOX"]);
+
+    expect(post.mock.calls[0]?.[1]).toEqual({
+      addLabelIds: ["Label_1"],
+      removeLabelIds: ["INBOX"],
+    });
+    expect(post.mock.calls[1]?.[1]).toEqual({
+      addLabelIds: ["INBOX"],
+      removeLabelIds: ["Label_1"],
+    });
   });
 });

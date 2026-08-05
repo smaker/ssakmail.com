@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   emailHtmlDocument,
   filterMessages,
+  mailboxEndpoint,
+  mailboxQueryKey,
   mailViewState,
   preferenceLabel,
   selectedMessageAfterRemoval,
@@ -16,6 +18,20 @@ describe("mail view state", () => {
     ["authenticated", true, "mailbox"],
   ] as const)("maps %s/%s to %s", (status, connected, expected) => {
     expect(mailViewState(status, connected)).toBe(expected);
+  });
+});
+
+describe("mailbox routing", () => {
+  it.each([
+    ["inbox", "/api/gmail/messages", ["gmail", "messages", "inbox"]],
+    [
+      "auto-organized",
+      "/api/gmail/auto-organized",
+      ["gmail", "messages", "auto-organized"],
+    ],
+  ] as const)("routes %s mailbox", (mailbox, endpoint, queryKey) => {
+    expect(mailboxEndpoint(mailbox)).toBe(endpoint);
+    expect(mailboxQueryKey(mailbox)).toEqual(queryKey);
   });
 });
 

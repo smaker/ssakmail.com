@@ -1,7 +1,11 @@
 import {
+  AUTO_ORGANIZE_DEFAULT_CONFIDENCE,
+  AUTO_ORGANIZE_DEFAULT_ENABLED,
+  type AutoOrganizeSettings,
   type FeedbackAction,
   fallbackRecommendation,
   feedbackWeight,
+  isValidAutoOrganizeConfidence,
   maskSensitiveText,
   parseModelRecommendation,
   type Recommendation,
@@ -90,13 +94,64 @@ export async function getConsent(env: PreferenceEnv, email: string) {
   )
     .bind(userKey)
     .first<{ data_count: number }>();
+  const settings = await getAutoOrganizeSettings(env, email);
   return {
     consented: Boolean(row && !row.withdrawn_at && row.overseas_consented_at),
     hasData: Number(data?.data_count ?? 0) > 0,
     policyVersion: row?.policy_version ?? POLICY_VERSION,
     consentedAt: row?.consented_at,
     overseasConsentedAt: row?.overseas_consented_at,
+    autoOrganizeEnabled: settings.enabled,
+    autoOrganizeConfidenceThreshold: settings.confidenceThreshold,
   };
+}
+
+export async function getAutoOrganizeSettings(
+  env: PreferenceEnv,
+  email: string,
+): Promise<AutoOrganizeSettings> {
+  const row = await env.PREFERENCES_DB.prepare(
+    "SELECT enabled, confidence_threshold FROM auto_organize_settings WHERE user_key = ?1",
+  )
+    .bind(await userNamespace(email))
+    .first<{ enabled: number | boolean; confidence_threshold: number }>();
+  return {
+    enabled: row == null ? AUTO_ORGANIZE_DEFAULT_ENABLED : Boolean(row.enabled),
+    confidenceThreshold:
+      row && isValidAutoOrganizeConfidence(Number(row.confidence_threshold))
+        ? Number(row.confidence_threshold)
+        : AUTO_ORGANIZE_DEFAULT_CONFIDENCE,
+  };
+}
+
+export async function updateAutoOrganizeSettings(
+  env: PreferenceEnv,
+  email: string,
+  updates: Partial<AutoOrganizeSettings>,
+) {
+  const current = await getAutoOrganizeSettings(env, email);
+  const confidenceThreshold =
+    updates.confidenceThreshold ?? current.confidenceThreshold;
+  if (updates.enabled !== undefined && typeof updates.enabled !== "boolean") {
+    throw new Error("enabled must be a boolean");
+  }
+  if (!isValidAutoOrganizeConfidence(confidenceThreshold)) {
+    throw new Error(
+      "confidenceThreshold must be an integer from 50 to 100 in 5-point steps",
+    );
+  }
+  const enabled = updates.enabled ?? current.enabled;
+  await env.PREFERENCES_DB.prepare(
+    "INSERT INTO auto_organize_settings (user_key, enabled, confidence_threshold, updated_at) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(user_key) DO UPDATE SET enabled = excluded.enabled, confidence_threshold = excluded.confidence_threshold, updated_at = excluded.updated_at",
+  )
+    .bind(
+      await userNamespace(email),
+      enabled ? 1 : 0,
+      confidenceThreshold,
+      new Date().toISOString(),
+    )
+    .run();
+  return { enabled, confidenceThreshold };
 }
 
 export async function setConsent(env: PreferenceEnv, email: string) {
@@ -107,11 +162,14 @@ export async function setConsent(env: PreferenceEnv, email: string) {
   )
     .bind(userKey, POLICY_VERSION, now)
     .run();
+  const settings = await getAutoOrganizeSettings(env, email);
   return {
     consented: true,
     policyVersion: POLICY_VERSION,
     consentedAt: now,
     overseasConsentedAt: now,
+    autoOrganizeEnabled: settings.enabled,
+    autoOrganizeConfidenceThreshold: settings.confidenceThreshold,
   };
 }
 
@@ -190,6 +248,14 @@ export async function recommendMessage(
   const consent = await getConsent(env, email);
   if (!consent.consented) return { enabled: false };
 
+  return recommendMessageForConsentedUser(env, email, message);
+}
+
+export async function recommendMessageForConsentedUser(
+  env: PreferenceEnv,
+  email: string,
+  message: PreferenceMessage,
+): Promise<{ enabled: true; recommendation: Recommendation }> {
   const userKey = await userNamespace(email);
   const senderKey = await hash(senderAddress(message.from));
   const domainKey = await hash(senderDomain(message.from));
@@ -211,19 +277,26 @@ export async function recommendMessage(
     recommendation = fallback;
   }
 
+  const messageKey = await hash(message.id);
+  const eventId = await hash(`${userKey}:${messageKey}:recommendation`);
   await env.PREFERENCES_DB.prepare(
-    "INSERT INTO recommendation_events (id, user_key, message_key, category, preference_score, confidence, source, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+    "INSERT INTO recommendation_events (id, user_key, message_key, category, preference_score, confidence, source, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) ON CONFLICT(id) DO UPDATE SET category = excluded.category, preference_score = excluded.preference_score, confidence = excluded.confidence, source = excluded.source, created_at = excluded.created_at",
   )
     .bind(
-      crypto.randomUUID(),
+      eventId,
       userKey,
-      await hash(message.id),
+      messageKey,
       recommendation.category,
       recommendation.preferenceScore,
       recommendation.confidence,
       recommendation.source,
       new Date().toISOString(),
     )
+    .run();
+  await env.PREFERENCES_DB.prepare(
+    "DELETE FROM recommendation_events WHERE user_key = ?1 AND message_key = ?2 AND id <> ?3",
+  )
+    .bind(userKey, messageKey, eventId)
     .run();
   return { enabled: true, recommendation };
 }
@@ -287,6 +360,42 @@ export async function filterUnwantedMessages<T extends { id: string }>(
     .map(([message]) => message);
 }
 
+export async function getAutoOrganizeExcludedIds<T extends { id: string }>(
+  env: PreferenceEnv,
+  email: string,
+  messages: readonly T[],
+) {
+  const rows = await env.PREFERENCES_DB.prepare(
+    "SELECT message_key FROM auto_organize_exclusions WHERE user_key = ?1",
+  )
+    .bind(await userNamespace(email))
+    .all<{ message_key: string }>();
+  const excluded = new Set(rows.results.map(({ message_key }) => message_key));
+  const ids = await Promise.all(
+    messages.map(async ({ id }) => [id, await hash(id)] as const),
+  );
+  return new Set(
+    ids.filter(([, messageKey]) => excluded.has(messageKey)).map(([id]) => id),
+  );
+}
+
+export async function excludeMessageFromAutoOrganize(
+  env: PreferenceEnv,
+  email: string,
+  messageId: string,
+) {
+  await env.PREFERENCES_DB.prepare(
+    "INSERT INTO auto_organize_exclusions (user_key, message_key, created_at) VALUES (?1, ?2, ?3) ON CONFLICT(user_key, message_key) DO UPDATE SET created_at = excluded.created_at",
+  )
+    .bind(
+      await userNamespace(email),
+      await hash(messageId),
+      new Date().toISOString(),
+    )
+    .run();
+  return { excluded: true };
+}
+
 export async function deletePreferenceData(env: PreferenceEnv, email: string) {
   const userKey = await userNamespace(email);
   await env.PREFERENCES_DB.prepare(
@@ -302,11 +411,16 @@ export async function deletePreferenceData(env: PreferenceEnv, email: string) {
   const ids = vectors.results.map(({ vector_id }) => vector_id);
   if (ids.length) await env.PREFERENCE_VECTORS.deleteByIds(ids);
   await Promise.all(
-    ["preference_feedback", "recommendation_events", "ai_consents"].map(
-      (table) =>
-        env.PREFERENCES_DB.prepare(`DELETE FROM ${table} WHERE user_key = ?1`)
-          .bind(userKey)
-          .run(),
+    [
+      "preference_feedback",
+      "recommendation_events",
+      "auto_organize_settings",
+      "auto_organize_exclusions",
+      "ai_consents",
+    ].map((table) =>
+      env.PREFERENCES_DB.prepare(`DELETE FROM ${table} WHERE user_key = ?1`)
+        .bind(userKey)
+        .run(),
     ),
   );
   return { deleted: true };

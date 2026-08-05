@@ -4,6 +4,8 @@ import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { VStack } from "@astryxdesign/core/Layout";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
+import { Slider } from "@astryxdesign/core/Slider";
+import { Switch } from "@astryxdesign/core/Switch";
 import type {
   CleanupCategory,
   MessageDetail,
@@ -13,7 +15,7 @@ import type { FeedbackAction, Recommendation } from "@ssakmail/preference";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const GMAIL_SCOPE = "https://mail.google.com/";
 type Consent = {
@@ -22,12 +24,28 @@ type Consent = {
   consentedAt?: string;
   overseasConsentedAt?: string;
   hasData?: boolean;
+  autoOrganizeEnabled: boolean;
+  autoOrganizeConfidenceThreshold: number;
 };
 type RecommendationResponse = {
   enabled: boolean;
   recommendation?: Recommendation;
 };
+type AutoOrganizeSettingsResponse = {
+  enabled: boolean;
+  confidenceThreshold: number;
+};
 type MailFilter = "all" | "cleanup" | CleanupCategory;
+type Mailbox = "inbox" | "auto-organized";
+
+export const mailboxEndpoint = (mailbox: Mailbox) =>
+  mailbox === "inbox" ? "/api/gmail/messages" : "/api/gmail/auto-organized";
+
+export const mailboxQueryKey = (mailbox: Mailbox) => [
+  "gmail",
+  "messages",
+  mailbox,
+];
 
 export const filterMessages = <T extends { category: CleanupCategory }>(
   messages: readonly T[],
@@ -112,7 +130,9 @@ const messageDate = (value: string) =>
 export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const { data: session, status } = useSession();
   const [selectedId, setSelectedId] = useState<string>();
+  const [mailbox, setMailbox] = useState<Mailbox>("inbox");
   const [filter, setFilter] = useState<MailFilter>("all");
+  const [confidenceThreshold, setConfidenceThreshold] = useState(70);
   const [showImages, setShowImages] = useState(false);
   const [aiProcessingConsent, setAiProcessingConsent] = useState(false);
   const [overseasTransferConsent, setOverseasTransferConsent] = useState(false);
@@ -129,9 +149,9 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const state = mailViewState(status, gmailConnected ?? false);
 
   const messages = useQuery({
-    queryKey: ["gmail", "messages"],
+    queryKey: mailboxQueryKey(mailbox),
     queryFn: async () =>
-      (await axios.get<MessageSummary[]>("/api/gmail/messages")).data,
+      (await axios.get<MessageSummary[]>(mailboxEndpoint(mailbox))).data,
     enabled: state === "mailbox",
   });
   const consent = useQuery({
@@ -139,6 +159,10 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
     queryFn: async () => (await axios.get<Consent>("/api/preferences")).data,
     enabled: state === "mailbox",
   });
+  useEffect(() => {
+    if (consent.data?.autoOrganizeConfidenceThreshold)
+      setConfidenceThreshold(consent.data.autoOrganizeConfidenceThreshold);
+  }, [consent.data?.autoOrganizeConfidenceThreshold]);
   const detail = useQuery({
     queryKey: ["gmail", "messages", selectedId],
     queryFn: async () =>
@@ -169,6 +193,22 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
     onSuccess: ({ data }) =>
       queryClient.setQueryData(["preferences", "consent"], data),
   });
+  const updateAutoOrganize = useMutation({
+    mutationFn: (settings: { enabled: boolean; confidenceThreshold: number }) =>
+      axios.patch<AutoOrganizeSettingsResponse>("/api/preferences", settings),
+    onSuccess: ({ data }) => {
+      queryClient.setQueryData<Consent>(
+        ["preferences", "consent"],
+        (current) =>
+          current && {
+            ...current,
+            autoOrganizeEnabled: data.enabled,
+            autoOrganizeConfidenceThreshold: data.confidenceThreshold,
+          },
+      );
+      queryClient.invalidateQueries({ queryKey: mailboxQueryKey("inbox") });
+    },
+  });
   const deleteLearning = useMutation({
     mutationFn: () => axios.delete("/api/preferences"),
     onSuccess: () => {
@@ -176,6 +216,8 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
         consented: false,
         hasData: false,
         policyVersion: "2026-08-05",
+        autoOrganizeEnabled: true,
+        autoOrganizeConfidenceThreshold: 70,
       });
       queryClient.removeQueries({
         queryKey: ["preferences", "recommendation"],
@@ -184,20 +226,26 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   });
   const sendFeedback = (id: string, action: FeedbackAction) =>
     axios.post("/api/preferences/feedback", { messageId: id, action });
-  const removeMessage = (id: string) => {
+  const removeMessage = (id: string, sourceMailbox = mailbox) => {
     queryClient.setQueryData<MessageSummary[]>(
-      ["gmail", "messages"],
+      mailboxQueryKey(sourceMailbox),
       (current) => current?.filter((message) => message.id !== id),
     );
     queryClient.removeQueries({ queryKey: ["gmail", "messages", id] });
     setSelectedId((current) => selectedMessageAfterRemoval(current, id));
   };
   const feedback = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: FeedbackAction }) =>
-      sendFeedback(id, action),
-    onSuccess: (_, { id, action }) => {
+    mutationFn: ({
+      id,
+      action,
+    }: {
+      id: string;
+      action: FeedbackAction;
+      sourceMailbox: Mailbox;
+    }) => sendFeedback(id, action),
+    onSuccess: (_, { id, action, sourceMailbox }) => {
       if (shouldRemoveMessageAfterFeedback(action)) {
-        removeMessage(id);
+        removeMessage(id, sourceMailbox);
         return;
       }
       queryClient.invalidateQueries({
@@ -206,14 +254,14 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
     },
   });
   const trash = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id }: { id: string; sourceMailbox: Mailbox }) => {
       if (consent.data?.consented)
         await sendFeedback(id, "trashed").catch(() => undefined);
       return axios.post(`/api/gmail/messages/${encodeURIComponent(id)}/trash`);
     },
-    onSuccess: (_, id) => {
+    onSuccess: (_, { id, sourceMailbox }) => {
       deleteDialog.current?.close();
-      removeMessage(id);
+      removeMessage(id, sourceMailbox);
     },
   });
   const filteredMessages = filterMessages(messages.data ?? [], filter);
@@ -221,17 +269,30 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
     setShowImages(false);
     setSelectedId(id);
   };
+  const selectMailbox = (next: Mailbox) => {
+    setMailbox(next);
+    setFilter("all");
+    selectMessage();
+  };
+  const restore = useMutation({
+    mutationFn: (id: string) =>
+      axios.post(`/api/gmail/auto-organized/${encodeURIComponent(id)}/restore`),
+    onSuccess: (_, id) => {
+      removeMessage(id, "auto-organized");
+      queryClient.invalidateQueries({ queryKey: mailboxQueryKey("inbox") });
+    },
+  });
   const permanentlyDelete = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id }: { id: string; sourceMailbox: Mailbox }) => {
       if (consent.data?.consented)
         await sendFeedback(id, "deleted").catch(() => undefined);
       return axios.delete(
         `/api/gmail/messages/${encodeURIComponent(id)}/delete`,
       );
     },
-    onSuccess: (_, id) => {
+    onSuccess: (_, { id, sourceMailbox }) => {
       deleteDialog.current?.close();
-      removeMessage(id);
+      removeMessage(id, sourceMailbox);
     },
   });
 
@@ -322,6 +383,49 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               </small>
             </div>
           )}
+          {consent.data?.consented && (
+            <VStack gap={2} className="auto-organize-settings">
+              <Switch
+                label="선호도에 따라 싹메일 자동정리함으로 이동"
+                value={consent.data.autoOrganizeEnabled}
+                width="auto"
+                isLoading={updateAutoOrganize.isPending}
+                onChange={(enabled) =>
+                  updateAutoOrganize.mutate({
+                    enabled,
+                    confidenceThreshold,
+                  })
+                }
+              />
+              <Slider
+                label={`자동 정리 최소 신뢰도 ${confidenceThreshold}%`}
+                description="선호 가능성 40% 미만인 메일에 적용합니다."
+                value={confidenceThreshold}
+                min={50}
+                max={100}
+                step={5}
+                width="100%"
+                valueDisplay="text"
+                formatValue={(value) => `${value}%`}
+                isDisabled={
+                  !consent.data.autoOrganizeEnabled ||
+                  updateAutoOrganize.isPending
+                }
+                onChange={setConfidenceThreshold}
+                onChangeEnd={(value: number) =>
+                  updateAutoOrganize.mutate({
+                    enabled: consent.data.autoOrganizeEnabled,
+                    confidenceThreshold: value,
+                  })
+                }
+              />
+              {updateAutoOrganize.isError && (
+                <small role="alert">
+                  자동 정리 설정을 저장하지 못했습니다.
+                </small>
+              )}
+            </VStack>
+          )}
         </div>
         {consent.data?.consented || consent.data?.hasData ? (
           <Button
@@ -359,28 +463,47 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
         <div
           className={`message-list ${selectedId ? "message-list--selected" : ""}`}
         >
-          <h2>받은편지함</h2>
+          <h2>{mailbox === "inbox" ? "받은편지함" : "싹메일 자동정리함"}</h2>
           <fieldset className="message-filters">
-            <legend>메일 필터</legend>
-            {(
-              [
-                ["all", "전체"],
-                ["cleanup", "정리 추천"],
-                ["advertisement", "광고"],
-                ["payment", "결제 완료"],
-                ["smishing", "스미싱 의심"],
-              ] as const
-            ).map(([value, label]) => (
-              <Button
-                label={label}
-                variant="secondary"
-                size="sm"
-                aria-pressed={filter === value}
-                key={value}
-                onClick={() => setFilter(value)}
-              />
-            ))}
+            <legend>메일함</legend>
+            <Button
+              label="받은편지함"
+              variant="secondary"
+              size="sm"
+              aria-pressed={mailbox === "inbox"}
+              onClick={() => selectMailbox("inbox")}
+            />
+            <Button
+              label="싹메일 자동정리함"
+              variant="secondary"
+              size="sm"
+              aria-pressed={mailbox === "auto-organized"}
+              onClick={() => selectMailbox("auto-organized")}
+            />
           </fieldset>
+          {mailbox === "inbox" && (
+            <fieldset className="message-filters">
+              <legend>메일 필터</legend>
+              {(
+                [
+                  ["all", "전체"],
+                  ["cleanup", "정리 추천"],
+                  ["advertisement", "광고"],
+                  ["payment", "결제 완료"],
+                  ["smishing", "스미싱 의심"],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  label={label}
+                  variant="secondary"
+                  size="sm"
+                  aria-pressed={filter === value}
+                  key={value}
+                  onClick={() => setFilter(value)}
+                />
+              ))}
+            </fieldset>
+          )}
           {messages.isPending && (
             <VStack
               gap={2}
@@ -407,7 +530,13 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               />
             </div>
           )}
-          {messages.data?.length === 0 && <p>받은편지함이 비어 있습니다.</p>}
+          {messages.data?.length === 0 && (
+            <p>
+              {mailbox === "inbox"
+                ? "받은편지함이 비어 있습니다."
+                : "자동 정리된 메일이 없습니다."}
+            </p>
+          )}
           {messages.data && filteredMessages.length === 0 && (
             <p>이 조건에 맞는 메일이 없습니다.</p>
           )}
@@ -449,7 +578,17 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
             <p className="detail-empty">읽을 메일을 선택하세요.</p>
           )}
           {detail.isPending && selectedId && (
-            <p role="status">메일을 여는 중</p>
+            <VStack
+              className="message-body"
+              gap={3}
+              role="status"
+              aria-label="메일을 여는 중"
+              aria-busy="true"
+            >
+              <Skeleton width="38%" height={16} />
+              <Skeleton width="72%" height={28} index={1} />
+              <Skeleton width="100%" height={180} index={2} />
+            </VStack>
           )}
           {detail.isError && <p role="alert">메일을 열지 못했습니다.</p>}
           {detail.data && (
@@ -519,6 +658,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
                         feedback.mutate({
                           id: detail.data.id,
                           action: "preferred",
+                          sourceMailbox: mailbox,
                         })
                       }
                     />
@@ -530,6 +670,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
                         feedback.mutate({
                           id: detail.data.id,
                           action: "unwanted",
+                          sourceMailbox: mailbox,
                         })
                       }
                     />
@@ -537,6 +678,16 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
                 </section>
               )}
               <div className="message-actions">
+                {mailbox === "auto-organized" && (
+                  <Button
+                    label={
+                      restore.isPending ? "복원 중" : "받은편지함으로 복원"
+                    }
+                    variant="secondary"
+                    isLoading={restore.isPending}
+                    onClick={() => restore.mutate(detail.data.id)}
+                  />
+                )}
                 <Button
                   label={
                     detail.data.category === "other"
@@ -544,10 +695,19 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
                       : `${categoryLabel(detail.data.category)} 메일 삭제 검토`
                   }
                   variant="primary"
-                  isDisabled={trash.isPending || permanentlyDelete.isPending}
+                  isDisabled={
+                    restore.isPending ||
+                    trash.isPending ||
+                    permanentlyDelete.isPending
+                  }
                   onClick={() => deleteDialog.current?.showModal()}
                 />
               </div>
+              {restore.isError && (
+                <p role="alert">
+                  메일을 복원하지 못했습니다. 잠시 후 다시 시도해주세요.
+                </p>
+              )}
               {(trash.isError || permanentlyDelete.isError) && (
                 <p role="alert">
                   메일을 삭제하지 못했습니다. 잠시 후 다시 시도해주세요.
@@ -572,14 +732,21 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
             variant="secondary"
             isLoading={trash.isPending}
             isDisabled={permanentlyDelete.isPending}
-            onClick={() => detail.data && trash.mutate(detail.data.id)}
+            onClick={() =>
+              detail.data &&
+              trash.mutate({ id: detail.data.id, sourceMailbox: mailbox })
+            }
           />
           <Button
             label={permanentlyDelete.isPending ? "삭제 중" : "영구 삭제"}
             variant="destructive"
             isLoading={permanentlyDelete.isPending}
             onClick={() =>
-              detail.data && permanentlyDelete.mutate(detail.data.id)
+              detail.data &&
+              permanentlyDelete.mutate({
+                id: detail.data.id,
+                sourceMailbox: mailbox,
+              })
             }
           />
         </div>

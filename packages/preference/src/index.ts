@@ -18,6 +18,67 @@ export type Recommendation = {
   source: "ai" | "rules";
 };
 
+export const AUTO_ORGANIZE_DEFAULT_ENABLED = true;
+export const AUTO_ORGANIZE_DEFAULT_CONFIDENCE = 70;
+export const AUTO_ORGANIZE_MIN_CONFIDENCE = 50;
+export const AUTO_ORGANIZE_MAX_CONFIDENCE = 100;
+export const AUTO_ORGANIZE_CONFIDENCE_STEP = 5;
+
+export type AutoOrganizeSettings = {
+  enabled: boolean;
+  confidenceThreshold: number;
+};
+
+export const isValidAutoOrganizeConfidence = (value: number) =>
+  Number.isInteger(value) &&
+  value >= AUTO_ORGANIZE_MIN_CONFIDENCE &&
+  value <= AUTO_ORGANIZE_MAX_CONFIDENCE &&
+  value % AUTO_ORGANIZE_CONFIDENCE_STEP === 0;
+
+export const shouldAutoOrganize = (
+  preferenceScore: number,
+  confidence: number,
+  confidenceThreshold: number,
+) => preferenceScore < 40 && confidence * 100 >= confidenceThreshold;
+
+export async function autoOrganizeMessages<T extends { id: string }>(
+  messages: readonly T[],
+  settings: AutoOrganizeSettings,
+  recommend: (message: T) => Promise<Recommendation | undefined>,
+  move: (id: string) => Promise<boolean>,
+  keepOnError: (error: unknown) => boolean = () => true,
+): Promise<readonly T[]> {
+  if (!settings.enabled) return messages;
+  const inbox: T[] = [];
+  const concurrency = 4;
+  for (let offset = 0; offset < messages.length; offset += concurrency) {
+    const results = await Promise.all(
+      messages.slice(offset, offset + concurrency).map(async (message) => {
+        try {
+          const recommendation = await recommend(message);
+          if (
+            recommendation &&
+            recommendation.source === "ai" &&
+            shouldAutoOrganize(
+              recommendation.preferenceScore,
+              recommendation.confidence,
+              settings.confidenceThreshold,
+            ) &&
+            (await move(message.id))
+          )
+            return undefined;
+        } catch (error) {
+          if (!keepOnError(error)) throw error;
+        }
+        return message;
+      }),
+    );
+    for (const message of results)
+      if (message !== undefined) inbox.push(message);
+  }
+  return inbox;
+}
+
 export type FeedbackAction =
   | "preferred"
   | "unwanted"

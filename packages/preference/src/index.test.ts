@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  autoOrganizeMessages,
   fallbackRecommendation,
   feedbackWeight,
+  isValidAutoOrganizeConfidence,
   maskSensitiveText,
   parseModelRecommendation,
+  shouldAutoOrganize,
   userNamespace,
 } from "./index";
 
@@ -106,5 +109,92 @@ describe("personalization identity", () => {
     ["deleted", -5],
   ] as const)("weights %s feedback", (action, expected) => {
     expect(feedbackWeight(action)).toBe(expected);
+  });
+});
+
+describe("automatic organization settings", () => {
+  it("validates 5-point confidence thresholds", () => {
+    expect(isValidAutoOrganizeConfidence(50)).toBe(true);
+    expect(isValidAutoOrganizeConfidence(70)).toBe(true);
+    expect(isValidAutoOrganizeConfidence(100)).toBe(true);
+    expect(isValidAutoOrganizeConfidence(49)).toBe(false);
+    expect(isValidAutoOrganizeConfidence(55.5)).toBe(false);
+  });
+
+  it("organizes only low-preference mail above the confidence threshold", () => {
+    expect(shouldAutoOrganize(39, 0.7, 70)).toBe(true);
+    expect(shouldAutoOrganize(40, 1, 50)).toBe(false);
+    expect(shouldAutoOrganize(10, 0.69, 70)).toBe(false);
+  });
+
+  it("moves only qualifying messages and keeps failures in the inbox", async () => {
+    const recommend = async ({ id }: { id: string }) => {
+      if (id === "error") throw new Error("analysis failed");
+      return {
+        category: "advertisement" as const,
+        preferenceScore: id === "move" ? 39 : 40,
+        confidence: 0.7,
+        reason: "test",
+        source: "ai" as const,
+      };
+    };
+    const move = async (id: string) => id === "move";
+
+    await expect(
+      autoOrganizeMessages(
+        [{ id: "move" }, { id: "keep" }, { id: "error" }],
+        { enabled: true, confidenceThreshold: 70 },
+        recommend,
+        move,
+      ),
+    ).resolves.toEqual([{ id: "keep" }, { id: "error" }]);
+  });
+
+  it("does not analyze messages while automatic organization is disabled", async () => {
+    const recommend = async () => {
+      throw new Error("must not run");
+    };
+    const messages = [{ id: "m1" }];
+
+    await expect(
+      autoOrganizeMessages(
+        messages,
+        { enabled: false, confidenceThreshold: 70 },
+        recommend,
+        async () => true,
+      ),
+    ).resolves.toBe(messages);
+  });
+
+  it("rethrows errors the caller marks as fatal", async () => {
+    await expect(
+      autoOrganizeMessages(
+        [{ id: "m1" }],
+        { enabled: true, confidenceThreshold: 70 },
+        async () => {
+          throw new Error("auth failed");
+        },
+        async () => true,
+        () => false,
+      ),
+    ).rejects.toThrow("auth failed");
+  });
+
+  it("keeps rule-based fallbacks in the inbox", async () => {
+    const move = async () => true;
+    await expect(
+      autoOrganizeMessages(
+        [{ id: "m1" }],
+        { enabled: true, confidenceThreshold: 50 },
+        async () => ({
+          category: "advertisement",
+          preferenceScore: 35,
+          confidence: 0.55,
+          reason: "fallback",
+          source: "rules",
+        }),
+        move,
+      ),
+    ).resolves.toEqual([{ id: "m1" }]);
   });
 });

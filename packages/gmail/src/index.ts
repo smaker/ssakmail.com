@@ -18,6 +18,14 @@ type GmailMessage = {
   payload?: GmailPart;
 };
 
+export type GmailLabel = {
+  id?: string;
+  name?: string;
+  type?: string;
+};
+
+export const AUTO_ORGANIZED_LABEL_NAME = "싹메일 자동정리함";
+
 export type CleanupCategory =
   | "advertisement"
   | "payment"
@@ -181,12 +189,20 @@ export async function listMessages(
   accessToken: string,
   maxResults = 20,
 ): Promise<MessageSummary[]> {
+  return listMessagesByLabel(accessToken, "INBOX", maxResults);
+}
+
+export async function listMessagesByLabel(
+  accessToken: string,
+  labelId: string,
+  maxResults = 20,
+): Promise<MessageSummary[]> {
   try {
     const { data } = await axios.get<{ messages?: Array<{ id: string }> }>(
       `${GMAIL_API}/messages`,
       {
         headers: authorization(accessToken),
-        params: { maxResults, labelIds: "INBOX" },
+        params: { maxResults, labelIds: labelId },
       },
     );
     return Promise.all(
@@ -208,6 +224,86 @@ export async function listMessages(
     throw normalizeGmailError(error);
   }
 }
+
+export async function listLabels(accessToken: string): Promise<GmailLabel[]> {
+  try {
+    const { data } = await axios.get<{ labels?: GmailLabel[] }>(
+      `${GMAIL_API}/labels`,
+      { headers: authorization(accessToken) },
+    );
+    return data.labels ?? [];
+  } catch (error) {
+    throw normalizeGmailError(error);
+  }
+}
+
+export async function findLabel(
+  accessToken: string,
+  name = AUTO_ORGANIZED_LABEL_NAME,
+): Promise<GmailLabel | undefined> {
+  return (await listLabels(accessToken)).find((label) => label.name === name);
+}
+
+export async function createLabel(
+  accessToken: string,
+  name = AUTO_ORGANIZED_LABEL_NAME,
+): Promise<GmailLabel> {
+  try {
+    const { data } = await axios.post<GmailLabel>(
+      `${GMAIL_API}/labels`,
+      { name },
+      { headers: authorization(accessToken) },
+    );
+    return data;
+  } catch (error) {
+    throw normalizeGmailError(error);
+  }
+}
+
+export async function getOrCreateLabel(
+  accessToken: string,
+  name = AUTO_ORGANIZED_LABEL_NAME,
+): Promise<GmailLabel> {
+  const existing = await findLabel(accessToken, name);
+  if (existing) return existing;
+  try {
+    return await createLabel(accessToken, name);
+  } catch (error) {
+    const concurrent = await findLabel(accessToken, name);
+    if (concurrent) return concurrent;
+    throw error;
+  }
+}
+
+export async function modifyMessageLabels(
+  accessToken: string,
+  id: string,
+  addLabelIds: string[] = [],
+  removeLabelIds: string[] = [],
+): Promise<string[]> {
+  try {
+    const { data } = await axios.post<GmailMessage>(
+      `${GMAIL_API}/messages/${encodeURIComponent(id)}/modify`,
+      { addLabelIds, removeLabelIds },
+      { headers: authorization(accessToken) },
+    );
+    return data.labelIds ?? [];
+  } catch (error) {
+    throw normalizeGmailError(error);
+  }
+}
+
+export const moveToAutoOrganizedLabel = (
+  accessToken: string,
+  id: string,
+  labelId: string,
+) => modifyMessageLabels(accessToken, id, [labelId], ["INBOX"]);
+
+export const restoreFromAutoOrganizedLabel = (
+  accessToken: string,
+  id: string,
+  labelId: string,
+) => modifyMessageLabels(accessToken, id, ["INBOX"], [labelId]);
 
 export async function getMessage(
   accessToken: string,
