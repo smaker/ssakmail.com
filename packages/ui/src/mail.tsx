@@ -1,6 +1,8 @@
 "use client";
 
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
+import { VStack } from "@astryxdesign/core/Layout";
+import { Skeleton } from "@astryxdesign/core/Skeleton";
 import type {
   CleanupCategory,
   MessageDetail,
@@ -335,7 +337,22 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               </button>
             ))}
           </fieldset>
-          {messages.isPending && <p role="status">메일을 불러오는 중</p>}
+          {messages.isPending && (
+            <VStack
+              gap={2}
+              role="status"
+              aria-label="메일을 불러오는 중"
+              aria-busy="true"
+            >
+              {[0, 1, 2, 3].map((index) => (
+                <VStack gap={1} key={index}>
+                  <Skeleton width="88%" height={18} index={index * 3} />
+                  <Skeleton width="68%" height={14} index={index * 3 + 1} />
+                  <Skeleton width="42%" height={12} index={index * 3 + 2} />
+                </VStack>
+              ))}
+            </VStack>
+          )}
           {messages.isError && (
             <div role="alert">
               <p>메일을 불러오지 못했습니다.</p>
