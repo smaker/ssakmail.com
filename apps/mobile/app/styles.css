@@ -97,26 +97,6 @@ h1 {
   border-radius: 20px;
   background: white;
 }
-button {
-  padding: 11px 14px;
-  border: 0;
-  border-radius: 12px;
-  background: #285c31;
-  color: white;
-  font: inherit;
-  cursor: pointer;
-}
-button:disabled {
-  opacity: 0.55;
-  cursor: wait;
-}
-.button-secondary {
-  background: #e3ece0;
-  color: #26452d;
-}
-.button-danger {
-  background: #aa3029;
-}
 .mail-shell {
   margin-top: 28px;
   overflow: hidden;
@@ -148,7 +128,7 @@ button:disabled {
   border-bottom: 1px solid #e2e9df;
   background: #f7faf5;
 }
-.preference-settings div {
+.preference-settings > div {
   display: grid;
   gap: 4px;
 }
@@ -157,11 +137,15 @@ button:disabled {
   font-size: 12px;
 }
 .consent-summary {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 7px;
   margin: 5px 0;
   color: #526b56;
   font-size: 12px;
+}
+.consent-summary small {
+  flex-basis: 100%;
 }
 .recommendation-card {
   margin: 18px 0;
@@ -199,10 +183,13 @@ button:disabled {
   display: grid;
   min-width: 0;
   width: 100%;
+  height: auto;
   gap: 5px;
+  justify-items: start;
   margin-top: 8px;
   padding: 14px;
   text-align: left;
+  white-space: normal;
   background: #f2f7ef;
   color: #18351f;
 }
@@ -217,6 +204,15 @@ button:disabled {
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.message-row > span,
+.message-row > span > span {
+  display: contents;
+  overflow: visible;
+  color: inherit;
+  font-size: inherit;
+  text-overflow: clip;
+  white-space: normal;
 }
 .message-filters {
   display: flex;

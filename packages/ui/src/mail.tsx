@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { VStack } from "@astryxdesign/core/Layout";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
@@ -205,12 +206,11 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       <section className="mail-state">
         <h2>내 Gmail로 시작하기</h2>
         <p>로그인 후 필요한 시점에만 Gmail 권한을 요청합니다.</p>
-        <button
-          type="button"
+        <Button
+          label="Google로 로그인"
+          variant="primary"
           onClick={() => signIn("google", { callbackUrl: "/" })}
-        >
-          Google로 로그인
-        </button>
+        />
       </section>
     );
   }
@@ -219,16 +219,12 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       <section className="mail-state">
         <h2>Gmail 연결</h2>
         <p>메일 읽기, 휴지통 이동, 영구 삭제를 위해 Gmail 권한이 필요합니다.</p>
-        <button type="button" onClick={connectGmail}>
-          Gmail 연결
-        </button>
-        <button
-          className="button-secondary"
-          type="button"
+        <Button label="Gmail 연결" variant="primary" onClick={connectGmail} />
+        <Button
+          label="로그아웃"
+          variant="secondary"
           onClick={() => signOut()}
-        >
-          로그아웃
-        </button>
+        />
       </section>
     );
   }
@@ -240,13 +236,12 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
           <strong>{session?.user?.name ?? "내 Gmail"}</strong>
           <small>{session?.user?.email}</small>
         </div>
-        <button
-          className="button-secondary"
-          type="button"
+        <Button
+          label="로그아웃"
+          variant="ghost"
+          size="sm"
           onClick={() => signOut()}
-        >
-          로그아웃
-        </button>
+        />
       </header>
       <section
         className="preference-settings"
@@ -264,11 +259,13 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               <CheckboxInput
                 label="AI 분석 동의: 개인화 추천을 위해 마스킹된 메일 내용, 분류·임베딩과 사용자 선택을 동의 철회 시까지 처리합니다."
                 value={aiProcessingConsent}
+                width="auto"
                 onChange={setAiProcessingConsent}
               />
               <CheckboxInput
                 label="국외 이전 동의: Cloudflare, Inc.와 Workers AI 하위처리자 운영 지역(미국·영국 등)에서 암호화된 통신으로 처리하며, 목적과 기간은 AI 분석과 동일합니다."
                 value={overseasTransferConsent}
+                width="auto"
                 onChange={setOverseasTransferConsent}
               />
               <small>
@@ -280,35 +277,35 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
           <a href="/privacy">개인정보처리방침 보기</a>
         </div>
         {consent.data?.consented || consent.data?.hasData ? (
-          <button
-            className="button-secondary"
-            type="button"
-            disabled={deleteLearning.isPending}
+          <Button
+            label={
+              deleteLearning.isPending
+                ? "삭제 중"
+                : consent.data?.consented
+                  ? "동의 철회·데이터 삭제"
+                  : "남은 학습 데이터 삭제"
+            }
+            variant="secondary"
+            isLoading={deleteLearning.isPending}
             onClick={() =>
               window.confirm(
                 "AI 동의를 철회하고 학습 데이터를 모두 삭제할까요?",
               ) && deleteLearning.mutate()
             }
-          >
-            {deleteLearning.isPending
-              ? "삭제 중"
-              : consent.data?.consented
-                ? "동의 철회·데이터 삭제"
-                : "남은 학습 데이터 삭제"}
-          </button>
+          />
         ) : (
-          <button
-            type="button"
-            disabled={
+          <Button
+            label={enableAi.isPending ? "동의 처리 중" : "AI 분석에 동의"}
+            variant="primary"
+            isLoading={enableAi.isPending}
+            isDisabled={
               enableAi.isPending ||
               consent.isPending ||
               !aiProcessingConsent ||
               !overseasTransferConsent
             }
             onClick={() => enableAi.mutate()}
-          >
-            {enableAi.isPending ? "동의 처리 중" : "AI 분석에 동의"}
-          </button>
+          />
         )}
       </section>
       <div className="mail-content">
@@ -326,15 +323,14 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
                 ["payment", "결제 완료"],
               ] as const
             ).map(([value, label]) => (
-              <button
-                className="button-secondary"
-                type="button"
+              <Button
+                label={label}
+                variant="secondary"
+                size="sm"
                 aria-pressed={filter === value}
                 key={value}
                 onClick={() => setFilter(value)}
-              >
-                {label}
-              </button>
+              />
             ))}
           </fieldset>
           {messages.isPending && (
@@ -356,9 +352,11 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
           {messages.isError && (
             <div role="alert">
               <p>메일을 불러오지 못했습니다.</p>
-              <button type="button" onClick={connectGmail}>
-                Gmail 다시 연결
-              </button>
+              <Button
+                label="Gmail 다시 연결"
+                variant="primary"
+                onClick={connectGmail}
+              />
             </div>
           )}
           {messages.data?.length === 0 && <p>받은편지함이 비어 있습니다.</p>}
@@ -366,10 +364,11 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
             <p>이 조건에 맞는 메일이 없습니다.</p>
           )}
           {filteredMessages.map((message) => (
-            <button
+            <Button
+              label={message.subject}
+              variant="ghost"
               className="message-row"
               key={message.id}
-              type="button"
               aria-pressed={selectedId === message.id}
               onClick={() => setSelectedId(message.id)}
             >
@@ -383,20 +382,20 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               )}
               <span>{message.from}</span>
               <small>{messageDate(message.date)}</small>
-            </button>
+            </Button>
           ))}
         </div>
         <article
           className={`message-detail ${selectedId ? "message-detail--open" : ""}`}
         >
           {variant === "mobile" && selectedId && (
-            <button
-              className="button-secondary back-button"
-              type="button"
+            <Button
+              label="목록으로"
+              variant="secondary"
+              size="sm"
+              className="back-button"
               onClick={() => setSelectedId(undefined)}
-            >
-              목록으로
-            </button>
+            />
           )}
           {!selectedId && (
             <p className="detail-empty">읽을 메일을 선택하세요.</p>
@@ -444,45 +443,42 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
                     </p>
                   )}
                   <div className="feedback-actions">
-                    <button
-                      className="button-secondary"
-                      type="button"
-                      disabled={feedback.isPending}
+                    <Button
+                      label="선호함"
+                      variant="secondary"
+                      isDisabled={feedback.isPending}
                       onClick={() =>
                         feedback.mutate({
                           id: detail.data.id,
                           action: "preferred",
                         })
                       }
-                    >
-                      선호함
-                    </button>
-                    <button
-                      className="button-secondary"
-                      type="button"
-                      disabled={feedback.isPending}
+                    />
+                    <Button
+                      label="선호하지 않음"
+                      variant="secondary"
+                      isDisabled={feedback.isPending}
                       onClick={() =>
                         feedback.mutate({
                           id: detail.data.id,
                           action: "unwanted",
                         })
                       }
-                    >
-                      선호하지 않음
-                    </button>
+                    />
                   </div>
                 </section>
               )}
               <div className="message-actions">
-                <button
-                  type="button"
-                  disabled={trash.isPending || permanentlyDelete.isPending}
+                <Button
+                  label={
+                    detail.data.category === "other"
+                      ? "삭제 방법 선택"
+                      : `${categoryLabel(detail.data.category)} 메일 삭제 검토`
+                  }
+                  variant="primary"
+                  isDisabled={trash.isPending || permanentlyDelete.isPending}
                   onClick={() => deleteDialog.current?.showModal()}
-                >
-                  {detail.data.category === "other"
-                    ? "삭제 방법 선택"
-                    : `${categoryLabel(detail.data.category)} 메일 삭제 검토`}
-                </button>
+                />
               </div>
               {(trash.isError || permanentlyDelete.isError) && (
                 <p role="alert">
@@ -498,26 +494,26 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
         <p>{detail.data?.subject}</p>
         <p>휴지통은 복구할 수 있지만 영구 삭제는 취소할 수 없습니다.</p>
         <div className="dialog-actions">
-          <button type="button" onClick={() => deleteDialog.current?.close()}>
-            취소
-          </button>
-          <button
-            type="button"
-            disabled={trash.isPending || permanentlyDelete.isPending}
+          <Button
+            label="취소"
+            variant="secondary"
+            onClick={() => deleteDialog.current?.close()}
+          />
+          <Button
+            label={trash.isPending ? "이동 중" : "휴지통으로 이동"}
+            variant="secondary"
+            isLoading={trash.isPending}
+            isDisabled={permanentlyDelete.isPending}
             onClick={() => detail.data && trash.mutate(detail.data.id)}
-          >
-            {trash.isPending ? "이동 중" : "휴지통으로 이동"}
-          </button>
-          <button
-            className="button-danger"
-            type="button"
-            disabled={permanentlyDelete.isPending}
+          />
+          <Button
+            label={permanentlyDelete.isPending ? "삭제 중" : "영구 삭제"}
+            variant="destructive"
+            isLoading={permanentlyDelete.isPending}
             onClick={() =>
               detail.data && permanentlyDelete.mutate(detail.data.id)
             }
-          >
-            {permanentlyDelete.isPending ? "삭제 중" : "영구 삭제"}
-          </button>
+          />
         </div>
       </dialog>
     </section>
