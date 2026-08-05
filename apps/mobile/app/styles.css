@@ -142,6 +142,7 @@ button:disabled {
 }
 .message-row {
   display: grid;
+  min-width: 0;
   width: 100%;
   gap: 5px;
   margin-top: 8px;
@@ -149,6 +150,10 @@ button:disabled {
   text-align: left;
   background: #f2f7ef;
   color: #18351f;
+}
+.message-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .message-row span,
 .message-row small {
