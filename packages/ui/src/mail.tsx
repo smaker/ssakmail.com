@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import type {
   CleanupCategory,
   MessageDetail,
@@ -258,33 +259,16 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
           </small>
           {!consent.data?.consented && (
             <div className="consent-summary">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={aiProcessingConsent}
-                  onChange={(event) =>
-                    setAiProcessingConsent(event.target.checked)
-                  }
-                />
-                <span>
-                  AI 분석 동의: 개인화 추천을 위해 마스킹된 메일 내용,
-                  분류·임베딩과 사용자 선택을 동의 철회 시까지 처리합니다.
-                </span>
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={overseasTransferConsent}
-                  onChange={(event) =>
-                    setOverseasTransferConsent(event.target.checked)
-                  }
-                />
-                <span>
-                  국외 이전 동의: Cloudflare, Inc.와 Workers AI 하위처리자 운영
-                  지역(미국·영국 등)에서 암호화된 통신으로 처리하며, 목적과
-                  기간은 AI 분석과 동일합니다.
-                </span>
-              </label>
+              <CheckboxInput
+                label="AI 분석 동의: 개인화 추천을 위해 마스킹된 메일 내용, 분류·임베딩과 사용자 선택을 동의 철회 시까지 처리합니다."
+                value={aiProcessingConsent}
+                onChange={setAiProcessingConsent}
+              />
+              <CheckboxInput
+                label="국외 이전 동의: Cloudflare, Inc.와 Workers AI 하위처리자 운영 지역(미국·영국 등)에서 암호화된 통신으로 처리하며, 목적과 기간은 AI 분석과 동일합니다."
+                value={overseasTransferConsent}
+                onChange={setOverseasTransferConsent}
+              />
               <small>
                 각 동의를 거부할 수 있으며 Gmail 읽기·수동 삭제에는 불이익이
                 없습니다.

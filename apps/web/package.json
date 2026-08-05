@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@astryxdesign/core": "^0.2.0",
     "@ssakmail/auth": "workspace:*",
     "@ssakmail/data-access": "workspace:*",
     "@ssakmail/gmail": "workspace:*",

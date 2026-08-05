@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "@astryxdesign/core/reset.css";
+import "@astryxdesign/core/astryx.css";
+import { Theme } from "@astryxdesign/core/theme";
+import { ssakmailTheme } from "@ssakmail/ui/theme";
+import "@ssakmail/ui/theme.css";
 import "./styles.css";
 import { Providers } from "./providers";
 
@@ -14,7 +19,9 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        <Providers>{children}</Providers>
+        <Theme theme={ssakmailTheme} mode="light">
+          <Providers>{children}</Providers>
+        </Theme>
       </body>
     </html>
   );

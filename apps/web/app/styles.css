@@ -156,12 +156,6 @@ button:disabled {
   color: #526b56;
   font-size: 13px;
 }
-.consent-summary label {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 8px;
-  align-items: start;
-}
 .recommendation-card {
   margin: 20px 0;
   padding: 18px;
