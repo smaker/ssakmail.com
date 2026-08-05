@@ -1,0 +1,21 @@
+# StyleSeed — Design Lock
+<!-- Selections persist here. This file cannot waive StyleSeed core invariants. -->
+- App domain: consumer email productivity
+- Surface: responsive-web
+- Surface adapter: product-ui
+- Page type: inbox dashboard
+- Output grammar: consumer-service
+- Grammar path: built-in:engine/RULESETS.md
+- Grammar fallback: consumer-service
+- Reference confidence: n/a
+- Aesthetic profile: none
+- Skin: custom
+- Primary action: #285C31
+- Font: Arial, "Apple SD Gothic Neo", sans-serif
+- Radius: soft
+- Elevation: light=tonal grouping + restrained shadow · dark=tonal ramp + hairline
+- Density: comfortable
+- Motion: restrained
+- Imagery/data role: message content first; decoration only when it improves orientation
+- Signature move: surface important messages first with calm, category-aware guidance
+- Locked: 2026-08-05
