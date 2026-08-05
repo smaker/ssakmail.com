@@ -6,6 +6,8 @@ overrides:
   undici: 7.29.0
 
 allowBuilds:
+  '@astryxdesign/cli': true
+  '@astryxdesign/core': true
   esbuild: true
   workerd: true
 
