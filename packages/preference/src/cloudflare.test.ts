@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   deletePreferenceData,
+  filterUnwantedMessages,
   type PreferenceEnv,
   recommendMessage,
 } from "./cloudflare";
+import { userNamespace } from "./index";
 
 const statement = (result: unknown = null, rows: unknown[] = []) => ({
   bind() {
@@ -15,6 +17,22 @@ const statement = (result: unknown = null, rows: unknown[] = []) => ({
 });
 
 describe("Cloudflare preference service", () => {
+  it("filters messages previously marked unwanted", async () => {
+    const unwantedKey = await userNamespace("m1");
+    const env = {
+      PREFERENCES_DB: {
+        prepare: () => statement(null, [{ message_key: unwantedKey }]),
+      },
+    } as unknown as PreferenceEnv;
+
+    await expect(
+      filterUnwantedMessages(env, "user@example.com", [
+        { id: "m1" },
+        { id: "m2" },
+      ]),
+    ).resolves.toEqual([{ id: "m2" }]);
+  });
+
   it("does not call AI without explicit consent", async () => {
     const run = vi.fn();
     const env = {

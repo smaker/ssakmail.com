@@ -268,6 +268,25 @@ export async function recordFeedback(
   return { recorded: true };
 }
 
+export async function filterUnwantedMessages<T extends { id: string }>(
+  env: PreferenceEnv,
+  email: string,
+  messages: readonly T[],
+) {
+  const rows = await env.PREFERENCES_DB.prepare(
+    "SELECT message_key FROM preference_feedback WHERE user_key = ?1 AND action = 'unwanted'",
+  )
+    .bind(await userNamespace(email))
+    .all<{ message_key: string }>();
+  const unwanted = new Set(rows.results.map(({ message_key }) => message_key));
+  const messageKeys = await Promise.all(
+    messages.map(async (message) => [message, await hash(message.id)] as const),
+  );
+  return messageKeys
+    .filter(([, messageKey]) => !unwanted.has(messageKey))
+    .map(([message]) => message);
+}
+
 export async function deletePreferenceData(env: PreferenceEnv, email: string) {
   const userKey = await userNamespace(email);
   await env.PREFERENCES_DB.prepare(

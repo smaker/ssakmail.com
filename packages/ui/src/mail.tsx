@@ -69,6 +69,14 @@ export const emailHtmlDocument = (html: string, showImages: boolean) => {
 export const preferenceLabel = (score: number) =>
   score >= 70 ? "선호 가능성 높음" : score >= 40 ? "확인 필요" : "정리 추천";
 
+export const shouldRemoveMessageAfterFeedback = (action: FeedbackAction) =>
+  action === "unwanted";
+
+export const selectedMessageAfterRemoval = (
+  selectedId: string | undefined,
+  removedId: string,
+) => (selectedId === removedId ? undefined : selectedId);
+
 export const mailViewState = (
   status: "loading" | "authenticated" | "unauthenticated",
   gmailConnected: boolean,
@@ -176,22 +184,27 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   });
   const sendFeedback = (id: string, action: FeedbackAction) =>
     axios.post("/api/preferences/feedback", { messageId: id, action });
-  const feedback = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: FeedbackAction }) =>
-      sendFeedback(id, action),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: ["preferences", "recommendation", selectedId],
-      }),
-  });
   const removeMessage = (id: string) => {
     queryClient.setQueryData<MessageSummary[]>(
       ["gmail", "messages"],
       (current) => current?.filter((message) => message.id !== id),
     );
     queryClient.removeQueries({ queryKey: ["gmail", "messages", id] });
-    setSelectedId(undefined);
+    setSelectedId((current) => selectedMessageAfterRemoval(current, id));
   };
+  const feedback = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: FeedbackAction }) =>
+      sendFeedback(id, action),
+    onSuccess: (_, { id, action }) => {
+      if (shouldRemoveMessageAfterFeedback(action)) {
+        removeMessage(id);
+        return;
+      }
+      queryClient.invalidateQueries({
+        queryKey: ["preferences", "recommendation", selectedId],
+      });
+    },
+  });
   const trash = useMutation({
     mutationFn: async (id: string) => {
       if (consent.data?.consented)

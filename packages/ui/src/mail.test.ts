@@ -4,6 +4,8 @@ import {
   filterMessages,
   mailViewState,
   preferenceLabel,
+  selectedMessageAfterRemoval,
+  shouldRemoveMessageAfterFeedback,
 } from "./mail";
 
 describe("mail view state", () => {
@@ -24,6 +26,26 @@ describe("preference labels", () => {
     [20, "정리 추천"],
   ] as const)("labels score %s", (score, expected) => {
     expect(preferenceLabel(score)).toBe(expected);
+  });
+});
+
+describe("feedback effects", () => {
+  it.each([
+    ["preferred", false],
+    ["unwanted", true],
+    ["trashed", false],
+    ["deleted", false],
+  ] as const)("removes a message after %s feedback: %s", (action, expected) => {
+    expect(shouldRemoveMessageAfterFeedback(action)).toBe(expected);
+  });
+
+  it("keeps a different message selected while feedback finishes", () => {
+    expect(selectedMessageAfterRemoval("message-b", "message-a")).toBe(
+      "message-b",
+    );
+    expect(
+      selectedMessageAfterRemoval("message-a", "message-a"),
+    ).toBeUndefined();
   });
 });
 

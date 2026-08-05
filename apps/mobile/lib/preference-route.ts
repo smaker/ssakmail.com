@@ -1,5 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { authorizeGoogleToken, type GoogleToken } from "@ssakmail/auth";
+import { GmailError } from "@ssakmail/gmail";
 import type { PreferenceEnv } from "@ssakmail/preference/cloudflare";
 import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
@@ -20,6 +21,14 @@ async function context(request: NextRequest) {
   return { token, email: token.email, env: env as unknown as PreferenceEnv };
 }
 
+const errorResponse = (error: unknown) =>
+  error instanceof GmailError
+    ? NextResponse.json({ error: error.message }, { status: error.status })
+    : NextResponse.json(
+        { error: "선호도 요청을 처리하지 못했습니다." },
+        { status: 502 },
+      );
+
 export async function preferenceRoute<T>(
   request: NextRequest,
   handler: (env: PreferenceEnv, email: string) => Promise<T>,
@@ -28,11 +37,8 @@ export async function preferenceRoute<T>(
     const session = await context(request);
     if (session.response) return session.response;
     return NextResponse.json(await handler(session.env, session.email));
-  } catch {
-    return NextResponse.json(
-      { error: "선호도 요청을 처리하지 못했습니다." },
-      { status: 502 },
-    );
+  } catch (error) {
+    return errorResponse(error);
   }
 }
 
@@ -61,10 +67,7 @@ export async function preferenceGmailRoute<T>(
     return NextResponse.json(
       await handler(session.env, session.email, gmail.accessToken),
     );
-  } catch {
-    return NextResponse.json(
-      { error: "선호도 요청을 처리하지 못했습니다." },
-      { status: 502 },
-    );
+  } catch (error) {
+    return errorResponse(error);
   }
 }
