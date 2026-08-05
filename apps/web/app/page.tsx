@@ -1,5 +1,7 @@
 import { MailApp } from "@ssakmail/ui";
 
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   return (
     <main>
