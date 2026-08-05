@@ -19,8 +19,8 @@ export default function Home() {
         <p className="intro">
           웹과 모바일에서 같은 경험으로 시작하는 싹메일입니다.
         </p>
-        <MailApp variant="web" />
       </div>
+      <MailApp variant="web" />
     </main>
   );
 }

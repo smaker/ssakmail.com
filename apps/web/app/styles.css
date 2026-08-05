@@ -110,7 +110,9 @@ button:disabled {
   background: #aa3029;
 }
 .mail-shell {
-  margin-top: 48px;
+  width: 100%;
+  max-width: 1600px;
+  margin: 48px auto 0;
   overflow: hidden;
   border: 1px solid #caddc5;
   border-radius: 28px;
@@ -188,8 +190,8 @@ button:disabled {
 }
 .mail-content {
   display: grid;
-  grid-template-columns: minmax(280px, 38%) 1fr;
-  min-height: 520px;
+  grid-template-columns: minmax(320px, 32%) minmax(0, 1fr);
+  min-height: clamp(520px, 62vh, 820px);
 }
 .message-list {
   padding: 20px;
@@ -252,6 +254,7 @@ button:disabled {
   white-space: nowrap;
 }
 .message-detail {
+  min-width: 0;
   padding: 34px;
 }
 .detail-empty {
@@ -284,6 +287,21 @@ dialog {
 }
 dialog::backdrop {
   background: rgba(14, 30, 17, 0.5);
+}
+@media (min-width: 1440px) {
+  main {
+    padding-right: clamp(48px, 5vw, 96px);
+    padding-left: clamp(48px, 5vw, 96px);
+  }
+  .mail-content {
+    grid-template-columns: minmax(380px, 28%) minmax(0, 1fr);
+  }
+  .message-list {
+    padding: 28px;
+  }
+  .message-detail {
+    padding: 44px 52px;
+  }
 }
 @media (max-width: 640px) {
   main {
