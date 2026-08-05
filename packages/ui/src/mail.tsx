@@ -286,7 +286,6 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               </small>
             </div>
           )}
-          <a href="/privacy">개인정보처리방침 보기</a>
         </div>
         {consent.data?.consented || consent.data?.hasData ? (
           <Button

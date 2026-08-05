@@ -155,7 +155,8 @@ h1 {
   gap: 8px;
   margin-top: 14px;
 }
-.privacy-policy {
+.privacy-policy,
+.terms-of-service {
   max-width: 800px;
   margin: 60px auto;
   padding: 36px;
@@ -163,8 +164,19 @@ h1 {
   background: rgba(255, 255, 255, 0.82);
   line-height: 1.75;
 }
-.privacy-policy h1 {
+.privacy-policy h1,
+.terms-of-service h1 {
   font-size: clamp(42px, 7vw, 72px);
+}
+.site-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 24px clamp(24px, 6vw, 96px);
+  color: #55705a;
+  font-size: 13px;
+}
+.site-footer nav {
+  gap: 16px;
 }
 .mail-content {
   display: grid;

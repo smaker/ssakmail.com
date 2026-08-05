@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 
 export { MailApp, mailViewState } from "./mail";
 export { PrivacyPolicy } from "./privacy";
+export { SiteFooter } from "./site-footer";
+export { TermsOfService } from "./terms";
 
 export const statusPresentation = (
   state: "pending" | "error" | "ready",

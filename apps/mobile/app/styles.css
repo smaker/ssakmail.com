@@ -162,15 +162,30 @@ h1 {
   gap: 7px;
   margin-top: 12px;
 }
-.privacy-policy {
+.privacy-policy,
+.terms-of-service {
   margin: 32px 0;
   padding: 22px;
   border-radius: 22px;
   background: white;
   line-height: 1.7;
 }
-.privacy-policy h1 {
+.privacy-policy h1,
+.terms-of-service h1 {
   font-size: 42px;
+}
+.site-footer {
+  display: grid;
+  width: min(100%, 480px);
+  gap: 10px;
+  margin: 0 auto;
+  padding: 20px 22px;
+  color: #587059;
+  font-size: 12px;
+}
+.site-footer nav {
+  display: flex;
+  gap: 14px;
 }
 .mail-content {
   min-height: 440px;

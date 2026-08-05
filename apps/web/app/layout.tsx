@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import "@astryxdesign/core/reset.css";
 import "@astryxdesign/core/astryx.css";
 import { Theme } from "@astryxdesign/core/theme";
+import { SiteFooter } from "@ssakmail/ui";
 import { ssakmailTheme } from "@ssakmail/ui/theme";
 import "@ssakmail/ui/theme.css";
 import "./styles.css";
@@ -20,7 +21,10 @@ export default function RootLayout({
     <html lang="ko">
       <body>
         <Theme theme={ssakmailTheme} mode="light">
-          <Providers>{children}</Providers>
+          <Providers>
+            {children}
+            <SiteFooter />
+          </Providers>
         </Theme>
       </body>
     </html>
