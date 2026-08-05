@@ -78,4 +78,3 @@
 3. Commit and push only intended files; verify local and remote SHA parity.
 4. Deploy both Cloudflare Workers.
 5. Verify privacy page, consent, recommendation fallback/AI behavior, feedback, withdrawal, learned-data deletion, and delete confirmation without deleting a real message.
-

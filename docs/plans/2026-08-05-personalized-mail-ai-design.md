@@ -41,4 +41,3 @@ The UI adds privacy-policy navigation, AI opt-in settings, preference feedback c
 3. Store derived feedback but never Gmail originals or transient model payloads.
 4. Require user confirmation for every trash or permanent-delete action.
 5. Fall back to deterministic rules so AI failure never blocks Gmail use.
-
