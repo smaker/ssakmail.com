@@ -25,6 +25,14 @@ nav strong {
   font-size: 24px;
   letter-spacing: -1px;
 }
+nav div {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+a {
+  color: #285c31;
+}
 .hero {
   max-width: 860px;
   padding-top: clamp(110px, 18vh, 190px);
@@ -121,6 +129,62 @@ button:disabled {
 }
 .mail-toolbar small {
   color: #667a68;
+}
+.preference-settings {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 22px;
+  border-bottom: 1px solid #d8e4d4;
+  background: #f7faf5;
+}
+.preference-settings div {
+  display: grid;
+  gap: 4px;
+}
+.preference-settings small,
+.preference-settings a {
+  font-size: 13px;
+}
+.consent-summary {
+  display: grid;
+  gap: 8px;
+  margin: 6px 0;
+  color: #526b56;
+  font-size: 13px;
+}
+.consent-summary label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: start;
+}
+.recommendation-card {
+  margin: 20px 0;
+  padding: 18px;
+  border: 1px solid #caddc5;
+  border-radius: 18px;
+  background: #f7faf5;
+}
+.recommendation-card p {
+  margin: 8px 0;
+}
+.feedback-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.privacy-policy {
+  max-width: 800px;
+  margin: 60px auto;
+  padding: 36px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.82);
+  line-height: 1.75;
+}
+.privacy-policy h1 {
+  font-size: clamp(42px, 7vw, 72px);
 }
 .mail-content {
   display: grid;
@@ -236,6 +300,10 @@ dialog::backdrop {
   }
   .mail-content {
     grid-template-columns: 1fr;
+  }
+  .preference-settings {
+    align-items: stretch;
+    flex-direction: column;
   }
   .message-list {
     border-right: 0;

@@ -5,12 +5,24 @@ import type {
   MessageDetail,
   MessageSummary,
 } from "@ssakmail/gmail";
+import type { FeedbackAction, Recommendation } from "@ssakmail/preference";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRef, useState } from "react";
 
 const GMAIL_SCOPE = "https://mail.google.com/";
+type Consent = {
+  consented: boolean;
+  policyVersion: string;
+  consentedAt?: string;
+  overseasConsentedAt?: string;
+  hasData?: boolean;
+};
+type RecommendationResponse = {
+  enabled: boolean;
+  recommendation?: Recommendation;
+};
 type MailFilter = "all" | "cleanup" | CleanupCategory;
 
 export const filterMessages = <T extends { category: CleanupCategory }>(
@@ -31,6 +43,9 @@ const categoryLabel = (category: CleanupCategory) =>
     : category === "payment"
       ? "결제 완료"
       : undefined;
+
+export const preferenceLabel = (score: number) =>
+  score >= 70 ? "선호 가능성 높음" : score >= 40 ? "확인 필요" : "정리 추천";
 
 export const mailViewState = (
   status: "loading" | "authenticated" | "unauthenticated",
@@ -68,6 +83,8 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const { data: session, status } = useSession();
   const [selectedId, setSelectedId] = useState<string>();
   const [filter, setFilter] = useState<MailFilter>("all");
+  const [aiProcessingConsent, setAiProcessingConsent] = useState(false);
+  const [overseasTransferConsent, setOverseasTransferConsent] = useState(false);
   const deleteDialog = useRef<HTMLDialogElement>(null);
   const queryClient = useQueryClient();
   const gmail = (
@@ -86,6 +103,11 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       (await axios.get<MessageSummary[]>("/api/gmail/messages")).data,
     enabled: state === "mailbox",
   });
+  const consent = useQuery({
+    queryKey: ["preferences", "consent"],
+    queryFn: async () => (await axios.get<Consent>("/api/preferences")).data,
+    enabled: state === "mailbox",
+  });
   const detail = useQuery({
     queryKey: ["gmail", "messages", selectedId],
     queryFn: async () =>
@@ -96,6 +118,49 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       ).data,
     enabled: Boolean(selectedId),
   });
+  const recommendation = useQuery({
+    queryKey: ["preferences", "recommendation", selectedId],
+    queryFn: async () =>
+      (
+        await axios.post<RecommendationResponse>(
+          "/api/preferences/recommendation",
+          { messageId: selectedId },
+        )
+      ).data,
+    enabled: Boolean(selectedId && detail.data && consent.data?.consented),
+  });
+  const enableAi = useMutation({
+    mutationFn: () =>
+      axios.post<Consent>("/api/preferences", {
+        aiProcessing: aiProcessingConsent,
+        overseasTransfer: overseasTransferConsent,
+      }),
+    onSuccess: ({ data }) =>
+      queryClient.setQueryData(["preferences", "consent"], data),
+  });
+  const deleteLearning = useMutation({
+    mutationFn: () => axios.delete("/api/preferences"),
+    onSuccess: () => {
+      queryClient.setQueryData<Consent>(["preferences", "consent"], {
+        consented: false,
+        hasData: false,
+        policyVersion: "2026-08-05",
+      });
+      queryClient.removeQueries({
+        queryKey: ["preferences", "recommendation"],
+      });
+    },
+  });
+  const sendFeedback = (id: string, action: FeedbackAction) =>
+    axios.post("/api/preferences/feedback", { messageId: id, action });
+  const feedback = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: FeedbackAction }) =>
+      sendFeedback(id, action),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["preferences", "recommendation", selectedId],
+      }),
+  });
   const removeMessage = (id: string) => {
     queryClient.setQueryData<MessageSummary[]>(
       ["gmail", "messages"],
@@ -105,8 +170,11 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
     setSelectedId(undefined);
   };
   const trash = useMutation({
-    mutationFn: (id: string) =>
-      axios.post(`/api/gmail/messages/${encodeURIComponent(id)}/trash`),
+    mutationFn: async (id: string) => {
+      if (consent.data?.consented)
+        await sendFeedback(id, "trashed").catch(() => undefined);
+      return axios.post(`/api/gmail/messages/${encodeURIComponent(id)}/trash`);
+    },
     onSuccess: (_, id) => {
       deleteDialog.current?.close();
       removeMessage(id);
@@ -114,8 +182,13 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   });
   const filteredMessages = filterMessages(messages.data ?? [], filter);
   const permanentlyDelete = useMutation({
-    mutationFn: (id: string) =>
-      axios.delete(`/api/gmail/messages/${encodeURIComponent(id)}/delete`),
+    mutationFn: async (id: string) => {
+      if (consent.data?.consented)
+        await sendFeedback(id, "deleted").catch(() => undefined);
+      return axios.delete(
+        `/api/gmail/messages/${encodeURIComponent(id)}/delete`,
+      );
+    },
     onSuccess: (_, id) => {
       deleteDialog.current?.close();
       removeMessage(id);
@@ -172,6 +245,86 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
           로그아웃
         </button>
       </header>
+      <section
+        className="preference-settings"
+        aria-labelledby="ai-settings-title"
+      >
+        <div>
+          <strong id="ai-settings-title">개인화 AI 추천</strong>
+          <small>
+            {consent.data?.consented
+              ? "마스킹된 메일과 내 선택으로 추천을 학습합니다."
+              : "선택 동의 후 개인정보를 마스킹해 추천을 제공합니다."}
+          </small>
+          {!consent.data?.consented && (
+            <div className="consent-summary">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={aiProcessingConsent}
+                  onChange={(event) =>
+                    setAiProcessingConsent(event.target.checked)
+                  }
+                />
+                <span>
+                  AI 분석 동의: 개인화 추천을 위해 마스킹된 메일 내용,
+                  분류·임베딩과 사용자 선택을 동의 철회 시까지 처리합니다.
+                </span>
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={overseasTransferConsent}
+                  onChange={(event) =>
+                    setOverseasTransferConsent(event.target.checked)
+                  }
+                />
+                <span>
+                  국외 이전 동의: Cloudflare, Inc.와 Workers AI 하위처리자 운영
+                  지역(미국·영국 등)에서 암호화된 통신으로 처리하며, 목적과
+                  기간은 AI 분석과 동일합니다.
+                </span>
+              </label>
+              <small>
+                각 동의를 거부할 수 있으며 Gmail 읽기·수동 삭제에는 불이익이
+                없습니다.
+              </small>
+            </div>
+          )}
+          <a href="/privacy">개인정보처리방침 보기</a>
+        </div>
+        {consent.data?.consented || consent.data?.hasData ? (
+          <button
+            className="button-secondary"
+            type="button"
+            disabled={deleteLearning.isPending}
+            onClick={() =>
+              window.confirm(
+                "AI 동의를 철회하고 학습 데이터를 모두 삭제할까요?",
+              ) && deleteLearning.mutate()
+            }
+          >
+            {deleteLearning.isPending
+              ? "삭제 중"
+              : consent.data?.consented
+                ? "동의 철회·데이터 삭제"
+                : "남은 학습 데이터 삭제"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={
+              enableAi.isPending ||
+              consent.isPending ||
+              !aiProcessingConsent ||
+              !overseasTransferConsent
+            }
+            onClick={() => enableAi.mutate()}
+          >
+            {enableAi.isPending ? "동의 처리 중" : "AI 분석에 동의"}
+          </button>
+        )}
+      </section>
       <div className="mail-content">
         <div
           className={`message-list ${selectedId ? "message-list--selected" : ""}`}
@@ -259,6 +412,66 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               <p className="message-body">
                 {detail.data.body || detail.data.snippet}
               </p>
+              {consent.data?.consented && (
+                <section className="recommendation-card" aria-live="polite">
+                  {recommendation.isPending && <p>개인화 추천 분석 중</p>}
+                  {recommendation.data?.recommendation && (
+                    <>
+                      <strong>
+                        {preferenceLabel(
+                          recommendation.data.recommendation.preferenceScore,
+                        )}{" "}
+                        {recommendation.data.recommendation.preferenceScore}%
+                      </strong>
+                      <p>{recommendation.data.recommendation.reason}</p>
+                      <small>
+                        신뢰도{" "}
+                        {Math.round(
+                          recommendation.data.recommendation.confidence * 100,
+                        )}
+                        % ·{" "}
+                        {recommendation.data.recommendation.source === "ai"
+                          ? "Workers AI"
+                          : "규칙 기반 대체"}
+                      </small>
+                    </>
+                  )}
+                  {recommendation.isError && (
+                    <p>
+                      추천을 불러오지 못했지만 메일 기능은 계속 사용할 수
+                      있습니다.
+                    </p>
+                  )}
+                  <div className="feedback-actions">
+                    <button
+                      className="button-secondary"
+                      type="button"
+                      disabled={feedback.isPending}
+                      onClick={() =>
+                        feedback.mutate({
+                          id: detail.data.id,
+                          action: "preferred",
+                        })
+                      }
+                    >
+                      선호함
+                    </button>
+                    <button
+                      className="button-secondary"
+                      type="button"
+                      disabled={feedback.isPending}
+                      onClick={() =>
+                        feedback.mutate({
+                          id: detail.data.id,
+                          action: "unwanted",
+                        })
+                      }
+                    >
+                      선호하지 않음
+                    </button>
+                  </div>
+                </section>
+              )}
               <div className="message-actions">
                 <button
                   type="button"

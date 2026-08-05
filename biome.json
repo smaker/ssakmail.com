@@ -1,7 +1,13 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.7/schema.json",
   "files": {
-    "includes": ["**", "!!**/.next", "!!**/.open-next", "!!**/node_modules"]
+    "includes": [
+      "**",
+      "!!**/.next",
+      "!!**/.open-next",
+      "!!**/node_modules",
+      "!!**/cloudflare-env.d.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

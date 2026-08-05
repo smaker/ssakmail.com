@@ -9,6 +9,21 @@
   "vars": {
     "NEXTAUTH_URL": "https://ssakmail-mobile.dowon2308.workers.dev"
   },
+  "ai": { "binding": "AI" },
+  "d1_databases": [
+    {
+      "binding": "PREFERENCES_DB",
+      "database_name": "ssakmail-preferences",
+      "database_id": "92e43031-f54b-4b2c-adfd-2f3955234e82",
+      "migrations_dir": "../../database/migrations"
+    }
+  ],
+  "vectorize": [
+    {
+      "binding": "PREFERENCE_VECTORS",
+      "index_name": "ssakmail-preferences"
+    }
+  ],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"

@@ -34,6 +34,14 @@ header span {
   font-size: 11px;
   text-transform: uppercase;
 }
+header div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+a {
+  color: #285c31;
+}
 .phone-card {
   margin-top: 80px;
   padding: 34px 28px;
@@ -132,6 +140,59 @@ button:disabled {
   overflow: hidden;
   color: #687b6a;
   text-overflow: ellipsis;
+}
+.preference-settings {
+  display: grid;
+  gap: 12px;
+  padding: 15px 16px;
+  border-bottom: 1px solid #e2e9df;
+  background: #f7faf5;
+}
+.preference-settings div {
+  display: grid;
+  gap: 4px;
+}
+.preference-settings small,
+.preference-settings a {
+  font-size: 12px;
+}
+.consent-summary {
+  display: grid;
+  gap: 7px;
+  margin: 5px 0;
+  color: #526b56;
+  font-size: 12px;
+}
+.consent-summary label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 7px;
+  align-items: start;
+}
+.recommendation-card {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid #caddc5;
+  border-radius: 17px;
+  background: #f7faf5;
+}
+.recommendation-card p {
+  margin: 7px 0;
+}
+.feedback-actions {
+  display: flex;
+  gap: 7px;
+  margin-top: 12px;
+}
+.privacy-policy {
+  margin: 32px 0;
+  padding: 22px;
+  border-radius: 22px;
+  background: white;
+  line-height: 1.7;
+}
+.privacy-policy h1 {
+  font-size: 42px;
 }
 .mail-content {
   min-height: 440px;

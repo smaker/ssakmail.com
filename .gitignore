@@ -2,6 +2,7 @@ node_modules
 .next
 .open-next
 .wrangler
+cloudflare-env.d.ts
 .vercel
 .dev.vars
 coverage

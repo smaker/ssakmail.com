@@ -13,6 +13,10 @@
       "@ssakmail/auth": ["./packages/auth/src/index.ts"],
       "@ssakmail/data-access": ["./packages/data-access/src/index.tsx"],
       "@ssakmail/gmail": ["./packages/gmail/src/index.ts"],
+      "@ssakmail/preference": ["./packages/preference/src/index.ts"],
+      "@ssakmail/preference/cloudflare": [
+        "./packages/preference/src/cloudflare.ts"
+      ],
       "@ssakmail/ui": ["./packages/ui/src/index.tsx"]
     },
     "resolveJsonModule": true,
