@@ -200,7 +200,19 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   });
 
   if (state === "loading")
-    return <p className="mail-state">로그인 상태 확인 중</p>;
+    return (
+      <VStack
+        className="mail-state"
+        gap={2}
+        role="status"
+        aria-label="로그인 상태 확인 중"
+        aria-busy="true"
+      >
+        <Skeleton width="62%" height={24} />
+        <Skeleton width="88%" height={16} index={1} />
+        <Skeleton width="44%" height={36} index={2} />
+      </VStack>
+    );
   if (state === "signed-out") {
     return (
       <section className="mail-state">
