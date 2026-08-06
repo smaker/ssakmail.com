@@ -183,7 +183,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const [confidenceThreshold, setConfidenceThreshold] = useState(70);
   const [showImages, setShowImages] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState<boolean>();
   const [aiProcessingConsent, setAiProcessingConsent] = useState(false);
   const [overseasTransferConsent, setOverseasTransferConsent] = useState(false);
   const deleteDialog = useRef<HTMLDialogElement>(null);
@@ -349,6 +349,8 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       removeMessage(id, sourceMailbox);
     },
   });
+  // Until the user decides, the panel stays open so the consent choice is visible.
+  const settingsVisible = settingsOpen ?? consent.data?.consented === false;
   const loadedMessages = flattenMessagePages(messages.data);
   const filteredMessages = filterMessages(loadedMessages, filter);
   const selectMessage = (id?: string) => {
@@ -459,12 +461,12 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
         </div>
         <div className="mail-toolbar-actions">
           <Button
-            label={settingsOpen ? "설정 닫기" : "설정"}
+            label={settingsVisible ? "설정 닫기" : "설정"}
             variant="secondary"
             size="sm"
-            aria-expanded={settingsOpen}
+            aria-expanded={settingsVisible}
             aria-controls="preference-settings"
-            onClick={() => setSettingsOpen((open) => !open)}
+            onClick={() => setSettingsOpen(!settingsVisible)}
           />
           <Button
             label="로그아웃"
@@ -478,7 +480,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
         id="preference-settings"
         className="preference-settings"
         aria-labelledby="ai-settings-title"
-        hidden={!settingsOpen}
+        hidden={!settingsVisible}
       >
         <div>
           <strong id="ai-settings-title">개인화 AI 추천</strong>
