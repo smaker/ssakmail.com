@@ -68,6 +68,57 @@ header div {
 a {
   color: var(--ssak-brand);
 }
+.gnb {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 10px;
+  z-index: 20;
+  padding: 8px 8px 8px 16px;
+  border: 1px solid var(--ssak-line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 1px 2px rgba(23, 54, 30, 0.05);
+  backdrop-filter: blur(14px);
+}
+.gnb > div {
+  gap: 12px;
+}
+.gnb strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 19px;
+}
+.gnb strong::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ssak-brand);
+}
+.gnb a {
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: var(--ssak-ink-muted);
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
+}
+.gnb a:hover {
+  background: var(--ssak-brand-soft);
+  color: var(--ssak-brand);
+}
+@media (prefers-reduced-motion: reduce) {
+  .gnb a {
+    transition: none;
+  }
+}
 .phone-card {
   margin-top: 80px;
   padding: 34px 28px;

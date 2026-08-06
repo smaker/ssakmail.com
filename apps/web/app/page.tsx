@@ -5,12 +5,12 @@ export const dynamic = "force-dynamic";
 export default function Home() {
   return (
     <main>
-      <nav>
-        <strong>싹메일</strong>
+      <nav className="gnb">
         <div>
           <a href="/pricing">요금제</a>
-          <span className="site-domain">ssakmail.com</span>
+          <strong>싹메일</strong>
         </div>
+        <span className="site-domain">ssakmail.com</span>
       </nav>
       <div className="hero">
         <p className="eyebrow">SIMPLE MAIL, CLEAR MESSAGE</p>

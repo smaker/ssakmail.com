@@ -62,6 +62,61 @@ a {
   outline: 2px solid var(--ssak-brand);
   outline-offset: 2px;
 }
+.gnb {
+  position: sticky;
+  top: 12px;
+  z-index: 20;
+  padding: 9px 10px 9px 20px;
+  border: 1px solid var(--ssak-line);
+  border-radius: 999px;
+  background: var(--ssak-surface-raised);
+  box-shadow: var(--ssak-shadow-sm);
+  backdrop-filter: blur(14px);
+}
+.gnb > div {
+  gap: 20px;
+}
+.gnb strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  letter-spacing: -0.6px;
+}
+.gnb strong::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ssak-brand);
+}
+.gnb a {
+  padding: 7px 14px;
+  border-radius: 999px;
+  color: var(--ssak-ink-muted);
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
+}
+.gnb a:hover {
+  background: var(--ssak-brand-soft);
+  color: var(--ssak-brand);
+}
+.gnb .site-domain {
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: var(--ssak-brand-tint);
+  color: var(--ssak-ink-subtle);
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gnb a {
+    transition: none;
+  }
+}
 .hero {
   max-width: 860px;
   padding-top: clamp(110px, 18vh, 190px);
@@ -419,7 +474,7 @@ dialog::backdrop {
   main {
     padding: 22px;
   }
-  nav .site-domain {
+  .gnb .site-domain {
     display: none;
   }
   .hero {

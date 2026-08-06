@@ -3,12 +3,12 @@ import { MailApp } from "@ssakmail/ui";
 export default function Home() {
   return (
     <main>
-      <header>
-        <strong>싹메일</strong>
+      <header className="gnb">
         <div>
           <a href="/pricing">요금제</a>
-          <span>mobile</span>
+          <strong>싹메일</strong>
         </div>
+        <span>mobile</span>
       </header>
       <section className="phone-card">
         <p className="eyebrow">SSAKMAIL MOBILE</p>
