@@ -1,3 +1,24 @@
+export const POLICY_VERSION = "2026-08-06";
+
+/**
+ * Consent is tied to the policy version it was given under, so a change to the
+ * overseas-transfer disclosure requires asking again.
+ */
+export const isConsentCurrent = (
+  consent:
+    | {
+        policyVersion?: string;
+        overseasConsentedAt?: string | null;
+        withdrawnAt?: string | null;
+      }
+    | undefined,
+) =>
+  Boolean(
+    consent?.overseasConsentedAt &&
+      !consent.withdrawnAt &&
+      consent.policyVersion === POLICY_VERSION,
+  );
+
 export const RECOMMENDATION_CATEGORIES = [
   "advertisement",
   "payment",

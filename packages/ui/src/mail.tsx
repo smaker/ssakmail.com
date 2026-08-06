@@ -13,7 +13,11 @@ import type {
   MessagePage,
 } from "@ssakmail/mail";
 import { providerLabel } from "@ssakmail/mail";
-import type { FeedbackAction, Recommendation } from "@ssakmail/preference";
+import {
+  type FeedbackAction,
+  POLICY_VERSION,
+  type Recommendation,
+} from "@ssakmail/preference";
 import {
   type InfiniteData,
   useInfiniteQuery,
@@ -297,7 +301,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       queryClient.setQueryData<Consent>(["preferences", "consent"], {
         consented: false,
         hasData: false,
-        policyVersion: "2026-08-05",
+        policyVersion: POLICY_VERSION,
         autoOrganizeEnabled: true,
         autoOrganizeConfidenceThreshold: 70,
       });

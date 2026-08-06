@@ -3,8 +3,10 @@ import {
   autoOrganizeMessages,
   fallbackRecommendation,
   feedbackWeight,
+  isConsentCurrent,
   isValidAutoOrganizeConfidence,
   maskSensitiveText,
+  POLICY_VERSION,
   parseModelRecommendation,
   shouldAutoOrganize,
   userNamespace,
@@ -196,5 +198,34 @@ describe("automatic organization settings", () => {
         move,
       ),
     ).resolves.toEqual([{ id: "m1" }]);
+  });
+});
+
+describe("consent policy versioning", () => {
+  it("accepts a consent given under the current policy", () => {
+    expect(
+      isConsentCurrent({
+        policyVersion: POLICY_VERSION,
+        overseasConsentedAt: "2026-08-06T00:00:00.000Z",
+      }),
+    ).toBe(true);
+  });
+
+  it("asks again when the policy changed, was withdrawn or lacks transfer consent", () => {
+    expect(
+      isConsentCurrent({
+        policyVersion: "2026-08-05",
+        overseasConsentedAt: "2026-08-05T00:00:00.000Z",
+      }),
+    ).toBe(false);
+    expect(
+      isConsentCurrent({
+        policyVersion: POLICY_VERSION,
+        overseasConsentedAt: "2026-08-06T00:00:00.000Z",
+        withdrawnAt: "2026-08-06T01:00:00.000Z",
+      }),
+    ).toBe(false);
+    expect(isConsentCurrent({ policyVersion: POLICY_VERSION })).toBe(false);
+    expect(isConsentCurrent(undefined)).toBe(false);
   });
 });

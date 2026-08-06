@@ -5,14 +5,17 @@ import {
   type FeedbackAction,
   fallbackRecommendation,
   feedbackWeight,
+  isConsentCurrent,
   isValidAutoOrganizeConfidence,
   maskSensitiveText,
+  POLICY_VERSION,
   parseModelRecommendation,
   type Recommendation,
   userNamespace,
 } from "./index";
 
-export const POLICY_VERSION = "2026-08-05";
+export { POLICY_VERSION } from "./index";
+
 const EMBEDDING_MODEL = "@cf/baai/bge-m3";
 const GENERATION_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 
@@ -96,7 +99,11 @@ export async function getConsent(env: PreferenceEnv, email: string) {
     .first<{ data_count: number }>();
   const settings = await getAutoOrganizeSettings(env, email);
   return {
-    consented: Boolean(row && !row.withdrawn_at && row.overseas_consented_at),
+    consented: isConsentCurrent({
+      policyVersion: row?.policy_version,
+      overseasConsentedAt: row?.overseas_consented_at,
+      withdrawnAt: row?.withdrawn_at,
+    }),
     hasData: Number(data?.data_count ?? 0) > 0,
     policyVersion: row?.policy_version ?? POLICY_VERSION,
     consentedAt: row?.consented_at,
