@@ -24,6 +24,7 @@ import {
 import axios from "axios";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ImapConnectForm } from "./imap-connect";
 
 const GMAIL_SCOPE = "https://mail.google.com/";
 const GRAPH_MAIL_SCOPE = "https://graph.microsoft.com/Mail.ReadWrite";
@@ -140,6 +141,7 @@ export const mailViewState = (
 export const AUTH_PROVIDER_ID: Record<MailProvider, string> = {
   google: "google",
   microsoft: "azure-ad",
+  imap: "imap",
 };
 
 /** Extra consent parameters that ask the provider for mailbox access. */
@@ -418,6 +420,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
             />
           )}
         </div>
+        <ImapConnectForm />
       </section>
     );
   }

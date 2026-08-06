@@ -488,3 +488,38 @@ dialog::backdrop {
   color: var(--ssak-ink-subtle);
   font-size: 13px;
 }
+.imap-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--ssak-line);
+}
+.imap-form h3 {
+  margin: 0;
+}
+.imap-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--ssak-ink-muted);
+  font-size: 13px;
+}
+.imap-form input,
+.imap-form select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--ssak-line-strong);
+  border-radius: var(--ssak-radius-sm);
+  background: var(--ssak-surface);
+  color: var(--ssak-ink);
+  font: inherit;
+  font-size: 14px;
+}
+.imap-form-row {
+  display: grid;
+  grid-template-columns: 1fr 100px;
+  gap: 10px;
+}
+.imap-form-error {
+  color: #a50c25;
+}

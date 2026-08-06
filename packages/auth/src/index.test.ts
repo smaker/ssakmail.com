@@ -42,7 +42,11 @@ describe("Google OAuth token helpers", () => {
         accessToken: "token",
         scope: `openid ${GRAPH_MAIL_SCOPE}`,
       }),
-    ).toEqual({ status: 200, accessToken: "token", provider: "microsoft" });
+    ).toEqual({
+      status: 200,
+      provider: "microsoft",
+      credentials: { provider: "microsoft", accessToken: "token" },
+    });
     expect(
       authorizeMailToken({
         provider: "microsoft",
@@ -52,7 +56,27 @@ describe("Google OAuth token helpers", () => {
     ).toEqual({ status: 403 });
     expect(
       authorizeMailToken({ accessToken: "token", scope: GMAIL_SCOPE }),
-    ).toEqual({ status: 200, accessToken: "token", provider: "google" });
+    ).toEqual({
+      status: 200,
+      provider: "google",
+      credentials: { provider: "google", accessToken: "token" },
+    });
+  });
+
+  it("hands back the stored IMAP credentials instead of a token", () => {
+    const imap = {
+      host: "imap.naver.com",
+      port: 993,
+      user: "me@naver.com",
+      password: "app-password",
+    };
+
+    expect(authorizeMailToken({ provider: "imap", imap })).toEqual({
+      status: 200,
+      provider: "imap",
+      credentials: { provider: "imap", ...imap },
+    });
+    expect(authorizeMailToken({ provider: "imap" })).toEqual({ status: 401 });
   });
 
   it("refreshes an expired access token without losing the refresh token", async () => {

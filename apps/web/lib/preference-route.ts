@@ -1,6 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { authorizeMailToken, type MailToken } from "@ssakmail/auth";
-import { type MailClient, MailError, mailClient } from "@ssakmail/mail";
+import { createMailClient, type MailClient, MailError } from "@ssakmail/mail";
 import type { PreferenceEnv } from "@ssakmail/preference/cloudflare";
 import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
@@ -60,7 +60,7 @@ export async function preferenceMailRoute<T>(
       await handler(
         session.env,
         session.email,
-        mailClient(authorized.provider, authorized.accessToken),
+        await createMailClient(authorized.credentials),
       ),
     );
   } catch (error) {

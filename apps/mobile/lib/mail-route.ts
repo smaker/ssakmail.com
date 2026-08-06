@@ -1,4 +1,4 @@
-import { type MailClient, MailError, mailClient } from "@ssakmail/mail";
+import { createMailClient, type MailClient, MailError } from "@ssakmail/mail";
 import type { NextRequest } from "next/server";
 import { mailSession } from "./mail-session";
 
@@ -16,9 +16,7 @@ export async function mailRoute<T>(
       { status: session.status },
     );
   try {
-    const result = await action(
-      mailClient(session.provider, session.accessToken),
-    );
+    const result = await action(await createMailClient(session.credentials));
     return result === undefined
       ? new Response(null, { status: 204 })
       : Response.json(result);

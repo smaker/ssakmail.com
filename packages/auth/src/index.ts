@@ -1,10 +1,20 @@
+import {
+  IMAP_DEFAULT_PORT,
+  type ImapCredentials,
+  isValidImapHost,
+  isValidImapPort,
+  verifyImapCredentials,
+} from "@ssakmail/mail";
 import axios from "axios";
 import type { NextAuthOptions } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import AzureADProvider from "next-auth/providers/azure-ad";
+import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
 export type OAuthMailProvider = "google" | "microsoft";
+export type MailTokenProvider = OAuthMailProvider | "imap";
+export const IMAP_PROVIDER_ID = "imap";
 
 export const GMAIL_SCOPE = "https://mail.google.com/";
 export const GRAPH_MAIL_SCOPE = "https://graph.microsoft.com/Mail.ReadWrite";
@@ -22,11 +32,16 @@ export const authorizationScope = (provider: OAuthMailProvider) =>
     : `${MICROSOFT_IDENTITY_SCOPE} ${GRAPH_MAIL_SCOPE}`;
 
 export type MailToken = JWT & {
-  provider?: OAuthMailProvider;
+  provider?: MailTokenProvider;
   accessToken?: string;
   refreshToken?: string;
   expiresAt?: number;
   scope?: string;
+  /**
+   * IMAP has no token to refresh, so the app password lives in the NextAuth
+   * JWT, which is encrypted with AUTH_SECRET and only ever read server side.
+   */
+  imap?: ImapCredentials;
   error?: "RefreshAccessTokenError";
 };
 
@@ -57,18 +72,46 @@ export const hasMailScope = (
 
 export const hasGmailScope = (scope?: string) => hasMailScope("google", scope);
 
-export const authorizeMailToken = (token: MailToken | null) => {
-  const provider = token?.provider ?? "google";
-  if (!token?.accessToken || token.error) return { status: 401 as const };
-  if (!hasMailScope(provider, token.scope)) return { status: 403 as const };
-  return { status: 200 as const, accessToken: token.accessToken, provider };
+export type AuthorizedMailToken =
+  | { status: 401 | 403 }
+  | {
+      status: 200;
+      credentials:
+        | { provider: OAuthMailProvider; accessToken: string }
+        | ({ provider: "imap" } & ImapCredentials);
+      provider: MailTokenProvider;
+    };
+
+export const authorizeMailToken = (
+  token: MailToken | null,
+): AuthorizedMailToken => {
+  if (!token || token.error) return { status: 401 };
+  if (token.provider === "imap") {
+    if (!token.imap) return { status: 401 };
+    return {
+      status: 200,
+      provider: "imap",
+      credentials: { provider: "imap", ...token.imap },
+    };
+  }
+  const provider = token.provider ?? "google";
+  if (!token.accessToken) return { status: 401 };
+  if (!hasMailScope(provider, token.scope)) return { status: 403 };
+  return {
+    status: 200,
+    provider,
+    credentials: { provider, accessToken: token.accessToken },
+  };
 };
 
 /** Kept for callers written before Microsoft support landed. */
 export const authorizeGoogleToken = (token: MailToken | null) => {
   const authorized = authorizeMailToken(token);
-  return authorized.status === 200
-    ? { status: authorized.status, accessToken: authorized.accessToken }
+  return authorized.status === 200 && authorized.credentials.provider !== "imap"
+    ? {
+        status: authorized.status,
+        accessToken: authorized.credentials.accessToken,
+      }
     : { status: authorized.status };
 };
 
@@ -91,7 +134,7 @@ const clientCredentials = (provider: OAuthMailProvider) =>
       };
 
 export async function refreshMailToken(token: MailToken): Promise<MailToken> {
-  const provider = token.provider ?? "google";
+  const provider = token.provider === "microsoft" ? "microsoft" : "google";
   try {
     if (!token.refreshToken) throw new Error("Missing refresh token");
 
@@ -137,6 +180,18 @@ export const isProviderConfigured = (provider: OAuthMailProvider) =>
         process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET,
       );
 
+export const readImapCredentials = (
+  credentials: Record<string, string> | undefined,
+): ImapCredentials | undefined => {
+  const host = credentials?.host?.trim() ?? "";
+  const user = credentials?.email?.trim() ?? "";
+  const password = credentials?.password ?? "";
+  const port = Number(credentials?.port || IMAP_DEFAULT_PORT);
+  if (!isValidImapHost(host) || !isValidImapPort(port)) return undefined;
+  if (!user.includes("@") || !password) return undefined;
+  return { host, port, user, password };
+};
+
 export function createAuthOptions(): NextAuthOptions {
   return {
     providers: [
@@ -157,12 +212,37 @@ export function createAuthOptions(): NextAuthOptions {
             }),
           ]
         : []),
+      CredentialsProvider({
+        id: IMAP_PROVIDER_ID,
+        name: "IMAP 메일 계정",
+        credentials: {
+          host: { label: "IMAP 서버", type: "text" },
+          port: { label: "포트", type: "text" },
+          email: { label: "메일 주소", type: "text" },
+          password: { label: "앱 비밀번호", type: "password" },
+        },
+        async authorize(credentials) {
+          const imap = readImapCredentials(credentials);
+          if (!imap) return null;
+          await verifyImapCredentials(imap);
+          return { id: imap.user, email: imap.user, name: imap.user, imap };
+        },
+      }),
     ],
     secret: process.env.AUTH_SECRET,
     session: { strategy: "jwt" },
     callbacks: {
-      async jwt({ token, account }) {
+      async jwt({ token, account, user }) {
         const mailToken = token as MailToken;
+        if (account?.provider === IMAP_PROVIDER_ID) {
+          const imap = (user as { imap?: ImapCredentials } | undefined)?.imap;
+          return {
+            ...mailToken,
+            provider: "imap" as const,
+            imap,
+            error: undefined,
+          };
+        }
         if (account) {
           return {
             ...mailToken,
@@ -179,7 +259,11 @@ export function createAuthOptions(): NextAuthOptions {
             error: undefined,
           };
         }
-        if (!mailToken.expiresAt || Date.now() < mailToken.expiresAt - 60_000)
+        if (
+          mailToken.provider === "imap" ||
+          !mailToken.expiresAt ||
+          Date.now() < mailToken.expiresAt - 60_000
+        )
           return mailToken;
         return refreshMailToken(mailToken);
       },
@@ -189,13 +273,19 @@ export function createAuthOptions(): NextAuthOptions {
         const mailSession = session as typeof session & {
           gmail: {
             connected: boolean;
-            provider: OAuthMailProvider;
+            provider: MailTokenProvider;
+            host?: string;
             error?: "RefreshAccessTokenError";
           };
         };
         mailSession.gmail = {
-          connected: hasMailScope(provider, mailToken.scope),
+          connected:
+            provider === "imap"
+              ? Boolean(mailToken.imap)
+              : hasMailScope(provider, mailToken.scope),
           provider,
+          // The password never leaves the server; the host is safe to show.
+          host: mailToken.imap?.host,
           error: mailToken.error,
         };
         return mailSession;
