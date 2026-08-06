@@ -37,6 +37,19 @@ Naver, Daum, Kakao and any other IMAP host connect with a mail address and an ap
 
 IMAP needs raw TCP, which exists only in the Cloudflare Workers runtime (`cloudflare:sockets`). `pnpm dev` runs on Node, so IMAP sign-in fails there; use `pnpm --dir apps/web preview` to exercise it locally.
 
+## Payments (PortOne V2)
+
+Paid plans go through PortOne, so the underlying PG can be swapped by changing the channel key alone. Store these on the web Worker with `wrangler secret put`:
+
+- `PORTONE_STORE_ID` — store identifier from the PortOne console
+- `PORTONE_CHANNEL_KEY` — channel key of the PG contract in use
+- `PORTONE_API_SECRET` — V2 API secret, used for server-side payment lookup
+- `PORTONE_WEBHOOK_SECRET` — signing secret for webhook verification
+
+Register `https://ssakmail-web.dowon2308.workers.dev/api/payments/webhook` as the webhook endpoint. Until all four values exist, `/api/payments/prepare` answers `503` and no checkout starts.
+
+Prices live in `packages/billing` and are never read from the client: `prepare` writes a `PENDING` row, the browser opens the PortOne window, then `complete` (and the webhook) re-reads the payment from PortOne and approves it only when status, amount and currency all match. Both approval paths update the same `PENDING` row, so a duplicate arrival cannot extend a subscription twice.
+
 Known IMAP limits: message ids change when a message moves between folders, and the list view classifies on headers alone because IMAP has no cheap body preview.
 
 ## Commands

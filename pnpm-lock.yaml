@@ -109,9 +109,18 @@ importers:
       '@astryxdesign/core':
         specifier: ^0.2.0
         version: 0.2.0(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@portone/browser-sdk':
+        specifier: ^0.1.9
+        version: 0.1.9
+      '@portone/server-sdk':
+        specifier: ^0.19.0
+        version: 0.19.0
       '@ssakmail/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@ssakmail/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@ssakmail/data-access':
         specifier: workspace:*
         version: link:../../packages/data-access
@@ -176,6 +185,19 @@ importers:
       next-auth:
         specifier: 4.24.15
         version: 4.24.15(next@16.3.0(@babel/core@7.29.7(supports-color@10.2.2))(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+    devDependencies:
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@types/node@24.13.3)(vite@8.2.0(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.16.9)(yaml@2.9.0))
+
+  packages/billing:
+    dependencies:
+      '@ssakmail/preference':
+        specifier: workspace:*
+        version: link:../preference
     devDependencies:
       typescript:
         specifier: 7.0.2
@@ -1628,6 +1650,12 @@ packages:
 
   '@poppinss/exception@1.2.3':
     resolution: {integrity: sha512-dCED+QRChTVatE9ibtoaxc+WkdzOSjYTKi/+uacHWIsfodVfpsueo3+DKpgU5Px8qXjgmXkSvhXvSCz3fnP9lw==}
+
+  '@portone/browser-sdk@0.1.9':
+    resolution: {integrity: sha512-GiLziqmKKSrorjWDvWjPhtD1nBd4zlY1crIPX5Kisx797MQYveqhtSMYwuyjRgwgInfEWonXjXWkHd5bTFUiWQ==}
+
+  '@portone/server-sdk@0.19.0':
+    resolution: {integrity: sha512-JIbD9HEEqaYuuW0zKU/sapqH1HQBf/Len+8ZPnMRb7E7tHnqRGrKPLS+fom34xUTiF3ZVKTrDjHeQHQ2YZc2og==}
 
   '@rolldown/binding-android-arm64@1.2.2':
     resolution: {integrity: sha512-l7x215OGvo1s52JWmR8U/DAVzEDWBCIbTm28aeJV/WDTSHgcKXaZTuBT0hJMs5NggilfJTW3clZVvd24yfKJxA==}
@@ -4879,6 +4907,10 @@ snapshots:
       supports-color: 10.2.2
 
   '@poppinss/exception@1.2.3': {}
+
+  '@portone/browser-sdk@0.1.9': {}
+
+  '@portone/server-sdk@0.19.0': {}
 
   '@rolldown/binding-android-arm64@1.2.2':
     optional: true

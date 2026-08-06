@@ -592,6 +592,42 @@ dialog::backdrop {
   color: var(--ssak-ink-subtle);
   font-size: 13px;
 }
+.checkout {
+  max-width: 1120px;
+  margin: 0 auto 60px;
+  padding: 28px;
+  border: 1px solid var(--ssak-line-strong);
+  border-radius: var(--ssak-radius-lg);
+  background: var(--ssak-surface-raised);
+}
+.checkout h2 {
+  margin: 0;
+}
+.checkout-note {
+  margin: 8px 0 0;
+  color: var(--ssak-ink-muted);
+  font-size: 14px;
+}
+.checkout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.checkout-actions .pricing-cta {
+  border: 0;
+  cursor: pointer;
+  font-size: 15px;
+}
+.checkout-actions .pricing-cta:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+.checkout-status {
+  margin: 14px 0 0;
+  color: var(--ssak-ink-muted);
+  font-size: 14px;
+}
 .provider-note {
   display: block;
   margin-top: 12px;

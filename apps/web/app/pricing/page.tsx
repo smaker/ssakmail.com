@@ -1,4 +1,5 @@
 import { PricingPlans } from "@ssakmail/ui";
+import { Checkout } from "./checkout";
 
 export default function PricingPage() {
   return (
@@ -7,6 +8,7 @@ export default function PricingPage() {
         <a href="/">싹메일로 돌아가기</a>
       </nav>
       <PricingPlans />
+      <Checkout />
     </main>
   );
 }

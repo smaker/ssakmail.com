@@ -24,8 +24,25 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
 
-  deploy:
+  migrate:
     needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # 스키마가 먼저 올라가야 새 배포가 없는 테이블을 읽지 않는다
+      - run: pnpm --dir apps/web exec wrangler d1 migrations apply ssakmail-preferences --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy:
+    needs: migrate
     runs-on: ubuntu-latest
     strategy:
       # ponytail: 한 앱이 실패해도 나머지 배포 결과를 봐야 하므로 fail-fast 해제
