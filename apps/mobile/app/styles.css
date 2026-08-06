@@ -1,14 +1,38 @@
 :root {
   color-scheme: light;
-  font-family: Arial, "Apple SD Gothic Neo", sans-serif;
-  background: #e9f2e2;
-  color: #17361e;
+  font-family:
+    Figtree, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Segoe UI", Roboto, sans-serif;
+
+  --ssak-bg: #e9f2e2;
+  --ssak-surface: #ffffff;
+  --ssak-surface-muted: #f7faf5;
+  --ssak-ink: #17361e;
+  --ssak-ink-muted: #587059;
+  --ssak-ink-subtle: #728175;
+  --ssak-line: #e2e9df;
+  --ssak-line-strong: #caddc5;
+  --ssak-brand: #285c31;
+  --ssak-brand-soft: #dcefd5;
+  --ssak-brand-tint: #f2f7ef;
+  --ssak-radius-sm: 10px;
+  --ssak-radius-md: 17px;
+  --ssak-radius-lg: 24px;
+
+  background: var(--ssak-bg);
+  color: var(--ssak-ink);
 }
 * {
   box-sizing: border-box;
+  min-width: 0;
 }
 body {
   margin: 0;
+  overflow-wrap: anywhere;
+}
+:focus-visible {
+  outline: 2px solid var(--ssak-brand);
+  outline-offset: 2px;
 }
 main {
   width: min(100%, 480px);
@@ -19,6 +43,7 @@ main {
 }
 header {
   display: flex;
+  gap: 12px;
   justify-content: space-between;
   align-items: center;
 }
@@ -27,6 +52,7 @@ header strong {
   letter-spacing: -1px;
 }
 header span {
+  flex: none;
   padding: 5px 9px;
   border-radius: 999px;
   background: #e1f0d8;
@@ -40,7 +66,7 @@ header div {
   align-items: center;
 }
 a {
-  color: #285c31;
+  color: var(--ssak-brand);
 }
 .phone-card {
   margin-top: 80px;
@@ -77,6 +103,7 @@ h1 {
   font-size: 13px;
 }
 .status-dot {
+  flex: none;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -106,20 +133,31 @@ h1 {
 }
 .mail-toolbar {
   display: flex;
+  gap: 12px;
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #e2e9df;
+  border-bottom: 1px solid var(--ssak-line);
 }
-.mail-toolbar div {
+.mail-account {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
-.mail-toolbar small {
+.mail-account strong,
+.mail-account small {
   overflow: hidden;
-  color: #687b6a;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mail-account small {
+  color: #687b6a;
+}
+.mail-toolbar-actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
 }
 .preference-settings {
   display: grid;
@@ -128,9 +166,13 @@ h1 {
   border-bottom: 1px solid #e2e9df;
   background: #f7faf5;
 }
+.preference-settings[hidden] {
+  display: none;
+}
 .preference-settings > div {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 .preference-settings small,
 .preference-settings a {
@@ -154,11 +196,15 @@ h1 {
   border-radius: 17px;
   background: #f7faf5;
 }
+dialog p {
+  overflow-wrap: anywhere;
+}
 .recommendation-card p {
   margin: 7px 0;
 }
 .feedback-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 7px;
   margin-top: 12px;
 }
@@ -192,25 +238,48 @@ h1 {
 }
 .message-list,
 .message-detail {
+  min-width: 0;
   padding: 18px;
+}
+.message-list-header {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+.message-list-header h2 {
+  margin: 0;
+}
+.message-list-sentinel {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 14px 0 2px;
 }
 .message-row {
   display: grid;
-  min-width: 0;
   width: 100%;
   height: auto;
   gap: 5px;
-  justify-items: start;
   margin-top: 8px;
   padding: 14px;
+  border-radius: var(--ssak-radius-sm);
   text-align: left;
   white-space: normal;
-  background: #f2f7ef;
-  color: #18351f;
+  background: var(--ssak-brand-tint);
+  color: var(--ssak-ink);
+}
+.message-row > * {
+  max-width: 100%;
 }
 .message-row strong {
-  min-width: 0;
   overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.message-row[aria-pressed="true"] {
+  background: var(--ssak-brand-soft);
+  box-shadow: inset 3px 0 #4d8c4a;
 }
 .message-row span,
 .message-row small {
@@ -243,9 +312,10 @@ h1 {
   font-size: 12px;
 }
 .message-filters [aria-pressed="true"] {
-  background: #dcefd5;
+  background: var(--ssak-brand-soft);
 }
 .candidate-badge {
+  justify-self: start;
   width: fit-content;
   padding: 3px 7px;
   border-radius: 999px;
@@ -253,9 +323,10 @@ h1 {
   color: #684f00;
   font-size: 11px;
   font-style: normal;
+  white-space: nowrap;
 }
 .candidate-badge--payment {
-  background: #dcefd5;
+  background: var(--ssak-brand-soft);
   color: #28572a;
 }
 .message-list--selected {
@@ -270,31 +341,42 @@ h1 {
 .back-button {
   margin-bottom: 22px;
 }
+.message-detail[hidden] {
+  display: none;
+}
+.message-detail h2 {
+  overflow-wrap: anywhere;
+}
 .detail-empty {
-  color: #728175;
+  color: var(--ssak-ink-subtle);
   text-align: center;
 }
 .message-from,
 .message-detail time {
+  display: block;
+  overflow-wrap: anywhere;
   color: #607263;
   font-size: 13px;
 }
 .message-body {
   min-height: 150px;
+  overflow-wrap: anywhere;
   padding-top: 20px;
-  border-top: 1px solid #e2e9df;
+  border-top: 1px solid var(--ssak-line);
   line-height: 1.65;
   white-space: pre-wrap;
 }
 .message-html {
+  display: block;
   width: 100%;
   min-height: 50vh;
-  margin-top: var(--spacing-3);
+  margin-top: var(--spacing-3, 12px);
   border: 0;
 }
 .message-actions,
 .dialog-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 9px;
   justify-content: flex-end;
 }

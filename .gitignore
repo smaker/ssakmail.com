@@ -8,3 +8,6 @@ cloudflare-env.d.ts
 coverage
 *.tsbuildinfo
 .DS_Store
+.omc/
+.omx/
+.serena/

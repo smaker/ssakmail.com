@@ -44,6 +44,13 @@ export type MessageSummary = {
 
 export type MessageDetail = MessageSummary & { body: string; htmlBody: string };
 
+export type MessagePage = {
+  messages: MessageSummary[];
+  nextCursor?: string;
+};
+
+export const MESSAGE_PAGE_SIZE = 20;
+
 export class GmailError extends Error {
   constructor(
     public readonly status: number,
@@ -188,25 +195,31 @@ const authorization = (accessToken: string) => ({
 
 export async function listMessages(
   accessToken: string,
-  maxResults = 20,
-): Promise<MessageSummary[]> {
-  return listMessagesByLabel(accessToken, "INBOX", maxResults);
+  maxResults = MESSAGE_PAGE_SIZE,
+  cursor?: string,
+): Promise<MessagePage> {
+  return listMessagesByLabel(accessToken, "INBOX", maxResults, cursor);
 }
 
 export async function listMessagesByLabel(
   accessToken: string,
   labelId: string,
-  maxResults = 20,
-): Promise<MessageSummary[]> {
+  maxResults = MESSAGE_PAGE_SIZE,
+  cursor?: string,
+): Promise<MessagePage> {
   try {
-    const { data } = await axios.get<{ messages?: Array<{ id: string }> }>(
-      `${GMAIL_API}/messages`,
-      {
-        ...authorization(accessToken),
-        params: { maxResults, labelIds: labelId },
+    const { data } = await axios.get<{
+      messages?: Array<{ id: string }>;
+      nextPageToken?: string;
+    }>(`${GMAIL_API}/messages`, {
+      ...authorization(accessToken),
+      params: {
+        maxResults,
+        labelIds: labelId,
+        ...(cursor ? { pageToken: cursor } : {}),
       },
-    );
-    return Promise.all(
+    });
+    const messages = await Promise.all(
       (data.messages ?? []).map(async ({ id }) => {
         const params = new URLSearchParams({ format: "metadata" });
         for (const name of ["From", "Subject", "Date"])
@@ -221,6 +234,7 @@ export async function listMessagesByLabel(
         return mapMessage(response.data);
       }),
     );
+    return { messages, nextCursor: data.nextPageToken };
   } catch (error) {
     throw normalizeGmailError(error);
   }

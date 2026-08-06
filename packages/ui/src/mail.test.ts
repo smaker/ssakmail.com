@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   emailHtmlDocument,
   filterMessages,
+  flattenMessagePages,
   mailboxEndpoint,
+  mailboxPageUrl,
   mailboxQueryKey,
   mailViewState,
   preferenceLabel,
+  removeMessageFromPages,
   selectedMessageAfterRemoval,
   shouldRemoveMessageAfterFeedback,
 } from "./mail";
@@ -32,6 +35,47 @@ describe("mailbox routing", () => {
   ] as const)("routes %s mailbox", (mailbox, endpoint, queryKey) => {
     expect(mailboxEndpoint(mailbox)).toBe(endpoint);
     expect(mailboxQueryKey(mailbox)).toEqual(queryKey);
+  });
+});
+
+describe("infinite mailbox pages", () => {
+  const pages = {
+    pageParams: [undefined, "cursor-1"],
+    pages: [
+      {
+        messages: [
+          { id: "a", category: "other" },
+          { id: "b", category: "other" },
+        ],
+        nextCursor: "cursor-1",
+      },
+      { messages: [{ id: "c", category: "other" }] },
+    ],
+    // biome-ignore lint/suspicious/noExplicitAny: message summaries are trimmed for this unit test
+  } as any;
+
+  it("builds a page URL only when a cursor exists", () => {
+    expect(mailboxPageUrl("inbox")).toBe("/api/gmail/messages");
+    expect(mailboxPageUrl("inbox", "next/page")).toBe(
+      "/api/gmail/messages?cursor=next%2Fpage",
+    );
+  });
+
+  it("flattens every loaded page in order", () => {
+    expect(flattenMessagePages(pages).map(({ id }) => id)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+    expect(flattenMessagePages(undefined)).toEqual([]);
+  });
+
+  it("removes a message from whichever page holds it", () => {
+    const next = removeMessageFromPages(pages, "b");
+
+    expect(flattenMessagePages(next).map(({ id }) => id)).toEqual(["a", "c"]);
+    expect(next?.pages[0]?.nextCursor).toBe("cursor-1");
+    expect(removeMessageFromPages(undefined, "b")).toBeUndefined();
   });
 });
 

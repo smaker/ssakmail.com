@@ -9,13 +9,19 @@ import { Switch } from "@astryxdesign/core/Switch";
 import type {
   CleanupCategory,
   MessageDetail,
-  MessageSummary,
+  MessagePage,
 } from "@ssakmail/gmail";
 import type { FeedbackAction, Recommendation } from "@ssakmail/preference";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import axios from "axios";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const GMAIL_SCOPE = "https://mail.google.com/";
 type Consent = {
@@ -46,6 +52,26 @@ export const mailboxQueryKey = (mailbox: Mailbox) => [
   "messages",
   mailbox,
 ];
+
+export const mailboxPageUrl = (mailbox: Mailbox, cursor?: string) =>
+  cursor
+    ? `${mailboxEndpoint(mailbox)}?cursor=${encodeURIComponent(cursor)}`
+    : mailboxEndpoint(mailbox);
+
+export const flattenMessagePages = (data?: InfiniteData<MessagePage>) =>
+  data?.pages.flatMap((page) => page.messages) ?? [];
+
+export const removeMessageFromPages = (
+  data: InfiniteData<MessagePage> | undefined,
+  id: string,
+) =>
+  data && {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      messages: page.messages.filter((message) => message.id !== id),
+    })),
+  };
 
 export const filterMessages = <T extends { category: CleanupCategory }>(
   messages: readonly T[],
@@ -134,6 +160,8 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const [filter, setFilter] = useState<MailFilter>("all");
   const [confidenceThreshold, setConfidenceThreshold] = useState(70);
   const [showImages, setShowImages] = useState(false);
+  const [detailCollapsed, setDetailCollapsed] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [aiProcessingConsent, setAiProcessingConsent] = useState(false);
   const [overseasTransferConsent, setOverseasTransferConsent] = useState(false);
   const deleteDialog = useRef<HTMLDialogElement>(null);
@@ -148,12 +176,29 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const gmailConnected = gmail?.connected && !gmail.error;
   const state = mailViewState(status, gmailConnected ?? false);
 
-  const messages = useQuery({
+  const messages = useInfiniteQuery({
     queryKey: mailboxQueryKey(mailbox),
-    queryFn: async () =>
-      (await axios.get<MessageSummary[]>(mailboxEndpoint(mailbox))).data,
+    queryFn: async ({ pageParam }) =>
+      (await axios.get<MessagePage>(mailboxPageUrl(mailbox, pageParam))).data,
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page: MessagePage) => page.nextCursor,
     enabled: state === "mailbox",
   });
+  const { fetchNextPage, hasNextPage, isFetchingNextPage } = messages;
+  const loadMoreRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node || !hasNextPage) return;
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) fetchNextPage();
+        },
+        { rootMargin: "240px" },
+      );
+      observer.observe(node);
+      return () => observer.disconnect();
+    },
+    [fetchNextPage, hasNextPage],
+  );
   const consent = useQuery({
     queryKey: ["preferences", "consent"],
     queryFn: async () => (await axios.get<Consent>("/api/preferences")).data,
@@ -227,9 +272,9 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const sendFeedback = (id: string, action: FeedbackAction) =>
     axios.post("/api/preferences/feedback", { messageId: id, action });
   const removeMessage = (id: string, sourceMailbox = mailbox) => {
-    queryClient.setQueryData<MessageSummary[]>(
+    queryClient.setQueryData<InfiniteData<MessagePage>>(
       mailboxQueryKey(sourceMailbox),
-      (current) => current?.filter((message) => message.id !== id),
+      (current) => removeMessageFromPages(current, id),
     );
     queryClient.removeQueries({ queryKey: ["gmail", "messages", id] });
     setSelectedId((current) => selectedMessageAfterRemoval(current, id));
@@ -264,9 +309,11 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       removeMessage(id, sourceMailbox);
     },
   });
-  const filteredMessages = filterMessages(messages.data ?? [], filter);
+  const loadedMessages = flattenMessagePages(messages.data);
+  const filteredMessages = filterMessages(loadedMessages, filter);
   const selectMessage = (id?: string) => {
     setShowImages(false);
+    setDetailCollapsed(false);
     setSelectedId(id);
   };
   const selectMailbox = (next: Mailbox) => {
@@ -341,20 +388,32 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   return (
     <section className={`mail-shell mail-shell--${variant}`}>
       <header className="mail-toolbar">
-        <div>
+        <div className="mail-account">
           <strong>{session?.user?.name ?? "내 Gmail"}</strong>
           <small>{session?.user?.email}</small>
         </div>
-        <Button
-          label="로그아웃"
-          variant="ghost"
-          size="sm"
-          onClick={() => signOut()}
-        />
+        <div className="mail-toolbar-actions">
+          <Button
+            label={settingsOpen ? "설정 닫기" : "설정"}
+            variant="secondary"
+            size="sm"
+            aria-expanded={settingsOpen}
+            aria-controls="preference-settings"
+            onClick={() => setSettingsOpen((open) => !open)}
+          />
+          <Button
+            label="로그아웃"
+            variant="ghost"
+            size="sm"
+            onClick={() => signOut()}
+          />
+        </div>
       </header>
       <section
+        id="preference-settings"
         className="preference-settings"
         aria-labelledby="ai-settings-title"
+        hidden={!settingsOpen}
       >
         <div>
           <strong id="ai-settings-title">개인화 AI 추천</strong>
@@ -459,11 +518,23 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
           />
         )}
       </section>
-      <div className="mail-content">
+      <div
+        className={`mail-content ${detailCollapsed ? "mail-content--collapsed" : ""}`}
+      >
         <div
-          className={`message-list ${selectedId ? "message-list--selected" : ""}`}
+          className={`message-list ${selectedId && !detailCollapsed ? "message-list--selected" : ""}`}
         >
-          <h2>{mailbox === "inbox" ? "받은편지함" : "싹메일 자동정리함"}</h2>
+          <div className="message-list-header">
+            <h2>{mailbox === "inbox" ? "받은편지함" : "싹메일 자동정리함"}</h2>
+            <Button
+              label={detailCollapsed ? "본문 펼치기" : "본문 접기"}
+              variant="ghost"
+              size="sm"
+              aria-expanded={!detailCollapsed}
+              aria-controls="message-detail"
+              onClick={() => setDetailCollapsed((collapsed) => !collapsed)}
+            />
+          </div>
           <fieldset className="message-filters">
             <legend>메일함</legend>
             <Button
@@ -530,14 +601,14 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               />
             </div>
           )}
-          {messages.data?.length === 0 && (
+          {messages.data && loadedMessages.length === 0 && (
             <p>
               {mailbox === "inbox"
                 ? "받은편지함이 비어 있습니다."
                 : "자동 정리된 메일이 없습니다."}
             </p>
           )}
-          {messages.data && filteredMessages.length === 0 && (
+          {loadedMessages.length > 0 && filteredMessages.length === 0 && (
             <p>이 조건에 맞는 메일이 없습니다.</p>
           )}
           {filteredMessages.map((message) => (
@@ -561,9 +632,33 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               <small>{messageDate(message.date)}</small>
             </Button>
           ))}
+          {hasNextPage && (
+            <div className="message-list-sentinel" ref={loadMoreRef}>
+              {isFetchingNextPage ? (
+                <VStack
+                  gap={1}
+                  role="status"
+                  aria-label="메일을 더 불러오는 중"
+                  aria-busy="true"
+                >
+                  <Skeleton width="88%" height={18} />
+                  <Skeleton width="68%" height={14} index={1} />
+                </VStack>
+              ) : (
+                <Button
+                  label="더 보기"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => fetchNextPage()}
+                />
+              )}
+            </div>
+          )}
         </div>
         <article
+          id="message-detail"
           className={`message-detail ${selectedId ? "message-detail--open" : ""}`}
+          hidden={detailCollapsed}
         >
           {variant === "mobile" && selectedId && (
             <Button

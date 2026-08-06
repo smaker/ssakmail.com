@@ -3,8 +3,11 @@ import type { NextRequest } from "next/server";
 import { gmailRoute } from "../../../../lib/gmail-route";
 
 export async function GET(request: NextRequest) {
+  const cursor = request.nextUrl.searchParams.get("cursor") ?? undefined;
   return gmailRoute(request, async (accessToken) => {
     const label = await findLabel(accessToken);
-    return label?.id ? listMessagesByLabel(accessToken, label.id) : [];
+    return label?.id
+      ? listMessagesByLabel(accessToken, label.id, undefined, cursor)
+      : { messages: [] };
   });
 }

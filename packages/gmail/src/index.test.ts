@@ -194,7 +194,7 @@ describe("Gmail response helpers", () => {
 
   it("lists messages by an arbitrary Gmail label", async () => {
     const get = vi.spyOn(axios, "get").mockResolvedValueOnce({
-      data: { messages: [{ id: "m1" }] },
+      data: { messages: [{ id: "m1" }], nextPageToken: "page-2" },
     });
     get.mockResolvedValueOnce({
       data: {
@@ -208,14 +208,28 @@ describe("Gmail response helpers", () => {
       },
     });
 
-    await expect(
-      listMessagesByLabel("access", "Label_1", 7),
-    ).resolves.toHaveLength(1);
+    const page = await listMessagesByLabel("access", "Label_1", 7);
+
+    expect(page.messages).toHaveLength(1);
+    expect(page.nextCursor).toBe("page-2");
     expect(get.mock.calls[0]?.[1]).toMatchObject({
       adapter: "fetch",
       params: { maxResults: 7, labelIds: "Label_1" },
     });
     expect(get.mock.calls[1]?.[1]).toMatchObject({ adapter: "fetch" });
+  });
+
+  it("passes a cursor as the Gmail page token and stops at the last page", async () => {
+    const get = vi
+      .spyOn(axios, "get")
+      .mockResolvedValueOnce({ data: { messages: [] } });
+
+    const page = await listMessagesByLabel("access", "INBOX", 7, "page-2");
+
+    expect(page).toEqual({ messages: [], nextCursor: undefined });
+    expect(get.mock.calls[0]?.[1]).toMatchObject({
+      params: { maxResults: 7, labelIds: "INBOX", pageToken: "page-2" },
+    });
   });
 
   it("finds an existing label without creating a duplicate", async () => {
