@@ -182,7 +182,8 @@ export const normalizeGmailError = (error: unknown) => {
 };
 
 const authorization = (accessToken: string) => ({
-  Authorization: `Bearer ${accessToken}`,
+  adapter: "fetch" as const,
+  headers: { Authorization: `Bearer ${accessToken}` },
 });
 
 export async function listMessages(
@@ -201,7 +202,7 @@ export async function listMessagesByLabel(
     const { data } = await axios.get<{ messages?: Array<{ id: string }> }>(
       `${GMAIL_API}/messages`,
       {
-        headers: authorization(accessToken),
+        ...authorization(accessToken),
         params: { maxResults, labelIds: labelId },
       },
     );
@@ -213,7 +214,7 @@ export async function listMessagesByLabel(
         const response = await axios.get<GmailMessage>(
           `${GMAIL_API}/messages/${encodeURIComponent(id)}`,
           {
-            headers: authorization(accessToken),
+            ...authorization(accessToken),
             params,
           },
         );
@@ -229,7 +230,7 @@ export async function listLabels(accessToken: string): Promise<GmailLabel[]> {
   try {
     const { data } = await axios.get<{ labels?: GmailLabel[] }>(
       `${GMAIL_API}/labels`,
-      { headers: authorization(accessToken) },
+      authorization(accessToken),
     );
     return data.labels ?? [];
   } catch (error) {
@@ -252,7 +253,7 @@ export async function createLabel(
     const { data } = await axios.post<GmailLabel>(
       `${GMAIL_API}/labels`,
       { name },
-      { headers: authorization(accessToken) },
+      authorization(accessToken),
     );
     return data;
   } catch (error) {
@@ -285,7 +286,7 @@ export async function modifyMessageLabels(
     const { data } = await axios.post<GmailMessage>(
       `${GMAIL_API}/messages/${encodeURIComponent(id)}/modify`,
       { addLabelIds, removeLabelIds },
-      { headers: authorization(accessToken) },
+      authorization(accessToken),
     );
     return data.labelIds ?? [];
   } catch (error) {
@@ -313,7 +314,7 @@ export async function getMessage(
     const { data } = await axios.get<GmailMessage>(
       `${GMAIL_API}/messages/${encodeURIComponent(id)}`,
       {
-        headers: authorization(accessToken),
+        ...authorization(accessToken),
         params: { format: "full" },
       },
     );
@@ -332,9 +333,7 @@ export async function trashMessage(accessToken: string, id: string) {
     await axios.post(
       `${GMAIL_API}/messages/${encodeURIComponent(id)}/trash`,
       undefined,
-      {
-        headers: authorization(accessToken),
-      },
+      authorization(accessToken),
     );
   } catch (error) {
     throw normalizeGmailError(error);
@@ -343,9 +342,10 @@ export async function trashMessage(accessToken: string, id: string) {
 
 export async function deleteMessage(accessToken: string, id: string) {
   try {
-    await axios.delete(`${GMAIL_API}/messages/${encodeURIComponent(id)}`, {
-      headers: authorization(accessToken),
-    });
+    await axios.delete(
+      `${GMAIL_API}/messages/${encodeURIComponent(id)}`,
+      authorization(accessToken),
+    );
   } catch (error) {
     throw normalizeGmailError(error);
   }

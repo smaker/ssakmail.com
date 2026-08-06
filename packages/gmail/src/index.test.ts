@@ -2,10 +2,12 @@ import axios from "axios";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   classifyMessage,
+  createLabel,
   decodeBody,
   deleteMessage,
   extractBody,
   extractHtmlBody,
+  getMessage,
   getOrCreateLabel,
   listMessagesByLabel,
   mapMessage,
@@ -183,9 +185,11 @@ describe("Gmail response helpers", () => {
     expect(
       String(post.mock.calls[0]?.[0]).endsWith("/messages/message%2Fid/trash"),
     ).toBe(true);
+    expect(post.mock.calls[0]?.[2]).toMatchObject({ adapter: "fetch" });
     expect(
       String(remove.mock.calls[0]?.[0]).endsWith("/messages/message%2Fid"),
     ).toBe(true);
+    expect(remove.mock.calls[0]?.[1]).toMatchObject({ adapter: "fetch" });
   });
 
   it("lists messages by an arbitrary Gmail label", async () => {
@@ -208,8 +212,10 @@ describe("Gmail response helpers", () => {
       listMessagesByLabel("access", "Label_1", 7),
     ).resolves.toHaveLength(1);
     expect(get.mock.calls[0]?.[1]).toMatchObject({
+      adapter: "fetch",
       params: { maxResults: 7, labelIds: "Label_1" },
     });
+    expect(get.mock.calls[1]?.[1]).toMatchObject({ adapter: "fetch" });
   });
 
   it("finds an existing label without creating a duplicate", async () => {
@@ -220,6 +226,9 @@ describe("Gmail response helpers", () => {
 
     await expect(getOrCreateLabel("access")).resolves.toMatchObject({
       id: "Label_1",
+    });
+    expect(vi.mocked(axios.get).mock.calls[0]?.[1]).toMatchObject({
+      adapter: "fetch",
     });
     expect(post).not.toHaveBeenCalled();
   });
@@ -236,6 +245,7 @@ describe("Gmail response helpers", () => {
     expect(post.mock.calls[0]?.[1]).toMatchObject({
       name: "싹메일 자동정리함",
     });
+    expect(post.mock.calls[0]?.[2]).toMatchObject({ adapter: "fetch" });
   });
 
   it("reuses a label created by a concurrent request", async () => {
@@ -268,9 +278,22 @@ describe("Gmail response helpers", () => {
       addLabelIds: ["Label_1"],
       removeLabelIds: ["INBOX"],
     });
+    expect(post.mock.calls[0]?.[2]).toMatchObject({ adapter: "fetch" });
     expect(post.mock.calls[1]?.[1]).toEqual({
       addLabelIds: ["INBOX"],
       removeLabelIds: ["Label_1"],
     });
+    expect(post.mock.calls[1]?.[2]).toMatchObject({ adapter: "fetch" });
+  });
+
+  it("uses the Workers fetch adapter for full message and label requests", async () => {
+    const get = vi.spyOn(axios, "get").mockResolvedValue({ data: {} });
+    const post = vi.spyOn(axios, "post").mockResolvedValue({ data: {} });
+
+    await getMessage("access", "message/id");
+    await createLabel("access");
+
+    expect(get.mock.calls[0]?.[1]).toMatchObject({ adapter: "fetch" });
+    expect(post.mock.calls[0]?.[2]).toMatchObject({ adapter: "fetch" });
   });
 });
