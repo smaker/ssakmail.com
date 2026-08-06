@@ -1,11 +1,10 @@
-import { deleteMessage } from "@ssakmail/gmail";
 import type { NextRequest } from "next/server";
-import { gmailRoute } from "../../../../../../lib/gmail-route";
+import { mailRoute } from "../../../../../../lib/mail-route";
 
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  return gmailRoute(request, (accessToken) => deleteMessage(accessToken, id));
+  return mailRoute(request, (mail) => mail.deleteMessage(id));
 }

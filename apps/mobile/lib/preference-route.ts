@@ -1,15 +1,16 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { authorizeGoogleToken, type GoogleToken } from "@ssakmail/auth";
-import { GmailError } from "@ssakmail/gmail";
+import { authorizeMailToken, type MailToken } from "@ssakmail/auth";
+import { type MailClient, MailError, mailClient } from "@ssakmail/mail";
 import type { PreferenceEnv } from "@ssakmail/preference/cloudflare";
 import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { connectionErrorMessage } from "./mail-route";
 
 async function context(request: NextRequest) {
   const token = (await getToken({
     req: request,
     secret: process.env.AUTH_SECRET,
-  })) as GoogleToken | null;
+  })) as MailToken | null;
   if (!token?.email)
     return {
       response: NextResponse.json(
@@ -22,7 +23,7 @@ async function context(request: NextRequest) {
 }
 
 const errorResponse = (error: unknown) =>
-  error instanceof GmailError
+  error instanceof MailError
     ? NextResponse.json({ error: error.message }, { status: error.status })
     : NextResponse.json(
         { error: "선호도 요청을 처리하지 못했습니다." },
@@ -42,30 +43,25 @@ export async function preferenceRoute<T>(
   }
 }
 
-export async function preferenceGmailRoute<T>(
+export async function preferenceMailRoute<T>(
   request: NextRequest,
-  handler: (
-    env: PreferenceEnv,
-    email: string,
-    accessToken: string,
-  ) => Promise<T>,
+  handler: (env: PreferenceEnv, email: string, mail: MailClient) => Promise<T>,
 ) {
   try {
     const session = await context(request);
     if (session.response) return session.response;
-    const gmail = authorizeGoogleToken(session.token);
-    if (gmail.status !== 200)
+    const authorized = authorizeMailToken(session.token);
+    if (authorized.status !== 200)
       return NextResponse.json(
-        {
-          error:
-            gmail.status === 403
-              ? "Gmail 연결이 필요합니다."
-              : "로그인이 필요합니다.",
-        },
-        { status: gmail.status },
+        { error: connectionErrorMessage(authorized.status) },
+        { status: authorized.status },
       );
     return NextResponse.json(
-      await handler(session.env, session.email, gmail.accessToken),
+      await handler(
+        session.env,
+        session.email,
+        mailClient(authorized.provider, authorized.accessToken),
+      ),
     );
   } catch (error) {
     return errorResponse(error);

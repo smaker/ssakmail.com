@@ -16,6 +16,7 @@
     "@astryxdesign/theme-neutral": "^0.2.0",
     "@ssakmail/data-access": "workspace:*",
     "@ssakmail/gmail": "workspace:*",
+    "@ssakmail/mail": "workspace:*",
     "@ssakmail/preference": "workspace:*",
     "@tanstack/react-query": "5.101.4",
     "axios": "1.19.0",

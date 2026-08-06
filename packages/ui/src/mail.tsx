@@ -8,9 +8,11 @@ import { Slider } from "@astryxdesign/core/Slider";
 import { Switch } from "@astryxdesign/core/Switch";
 import type {
   CleanupCategory,
+  MailProvider,
   MessageDetail,
   MessagePage,
-} from "@ssakmail/gmail";
+} from "@ssakmail/mail";
+import { providerLabel } from "@ssakmail/mail";
 import type { FeedbackAction, Recommendation } from "@ssakmail/preference";
 import {
   type InfiniteData,
@@ -24,6 +26,8 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const GMAIL_SCOPE = "https://mail.google.com/";
+const GRAPH_MAIL_SCOPE = "https://graph.microsoft.com/Mail.ReadWrite";
+const MICROSOFT_IDENTITY_SCOPE = "openid email profile offline_access";
 type Consent = {
   consented: boolean;
   policyVersion: string;
@@ -133,16 +137,32 @@ export const mailViewState = (
         ? "mailbox"
         : "needs-gmail";
 
-const connectGmail = () =>
+export const AUTH_PROVIDER_ID: Record<MailProvider, string> = {
+  google: "google",
+  microsoft: "azure-ad",
+};
+
+/** Extra consent parameters that ask the provider for mailbox access. */
+export const mailAuthorizationParams = (
+  provider: MailProvider,
+): Record<string, string> =>
+  provider === "google"
+    ? {
+        access_type: "offline",
+        include_granted_scopes: "true",
+        prompt: "consent",
+        scope: `openid email profile ${GMAIL_SCOPE}`,
+      }
+    : {
+        prompt: "consent",
+        scope: `${MICROSOFT_IDENTITY_SCOPE} ${GRAPH_MAIL_SCOPE}`,
+      };
+
+const connectMailbox = (provider: MailProvider) =>
   signIn(
-    "google",
+    AUTH_PROVIDER_ID[provider],
     { callbackUrl: "/" },
-    {
-      access_type: "offline",
-      include_granted_scopes: "true",
-      prompt: "consent",
-      scope: `openid email profile ${GMAIL_SCOPE}`,
-    },
+    mailAuthorizationParams(provider),
   );
 
 const messageDate = (value: string) =>
@@ -166,15 +186,33 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const [overseasTransferConsent, setOverseasTransferConsent] = useState(false);
   const deleteDialog = useRef<HTMLDialogElement>(null);
   const queryClient = useQueryClient();
-  const gmail = (
+  const mailAccount = (
     session as
       | (typeof session & {
-          gmail?: { connected: boolean; error?: "RefreshAccessTokenError" };
+          gmail?: {
+            connected: boolean;
+            provider?: MailProvider;
+            error?: "RefreshAccessTokenError";
+          };
         })
       | null
   )?.gmail;
-  const gmailConnected = gmail?.connected && !gmail.error;
-  const state = mailViewState(status, gmailConnected ?? false);
+  const provider = mailAccount?.provider ?? "google";
+  const mailboxConnected = mailAccount?.connected && !mailAccount.error;
+  const state = mailViewState(status, mailboxConnected ?? false);
+  const authProviders = useQuery({
+    queryKey: ["auth", "providers"],
+    queryFn: async () =>
+      (
+        await axios.get<Record<string, { id: string; name: string }>>(
+          "/api/auth/providers",
+        )
+      ).data,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const microsoftAvailable = Boolean(
+    authProviders.data?.[AUTH_PROVIDER_ID.microsoft],
+  );
 
   const messages = useInfiniteQuery({
     queryKey: mailboxQueryKey(mailbox),
@@ -360,27 +398,49 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   if (state === "signed-out") {
     return (
       <section className="mail-state">
-        <h2>내 Gmail로 시작하기</h2>
-        <p>로그인 후 필요한 시점에만 Gmail 권한을 요청합니다.</p>
-        <Button
-          label="Google로 로그인"
-          variant="primary"
-          onClick={() => signIn("google", { callbackUrl: "/" })}
-        />
+        <h2>내 메일함으로 시작하기</h2>
+        <p>로그인 후 필요한 시점에만 메일 권한을 요청합니다.</p>
+        <div className="provider-actions">
+          <Button
+            label="Google로 로그인"
+            variant="primary"
+            onClick={() =>
+              signIn(AUTH_PROVIDER_ID.google, { callbackUrl: "/" })
+            }
+          />
+          {microsoftAvailable && (
+            <Button
+              label="Microsoft로 로그인"
+              variant="secondary"
+              onClick={() =>
+                signIn(AUTH_PROVIDER_ID.microsoft, { callbackUrl: "/" })
+              }
+            />
+          )}
+        </div>
       </section>
     );
   }
   if (state === "needs-gmail") {
     return (
       <section className="mail-state">
-        <h2>Gmail 연결</h2>
-        <p>메일 읽기, 휴지통 이동, 영구 삭제를 위해 Gmail 권한이 필요합니다.</p>
-        <Button label="Gmail 연결" variant="primary" onClick={connectGmail} />
-        <Button
-          label="로그아웃"
-          variant="secondary"
-          onClick={() => signOut()}
-        />
+        <h2>{providerLabel(provider)} 연결</h2>
+        <p>
+          메일 읽기, 휴지통 이동, 영구 삭제를 위해 {providerLabel(provider)}{" "}
+          권한이 필요합니다.
+        </p>
+        <div className="provider-actions">
+          <Button
+            label={`${providerLabel(provider)} 연결`}
+            variant="primary"
+            onClick={() => connectMailbox(provider)}
+          />
+          <Button
+            label="로그아웃"
+            variant="secondary"
+            onClick={() => signOut()}
+          />
+        </div>
       </section>
     );
   }
@@ -389,7 +449,9 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
     <section className={`mail-shell mail-shell--${variant}`}>
       <header className="mail-toolbar">
         <div className="mail-account">
-          <strong>{session?.user?.name ?? "내 Gmail"}</strong>
+          <strong>
+            {session?.user?.name ?? `내 ${providerLabel(provider)}`}
+          </strong>
           <small>{session?.user?.email}</small>
         </div>
         <div className="mail-toolbar-actions">
@@ -595,9 +657,9 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
             <div role="alert">
               <p>메일을 불러오지 못했습니다.</p>
               <Button
-                label="Gmail 다시 연결"
+                label={`${providerLabel(provider)} 다시 연결`}
                 variant="primary"
-                onClick={connectGmail}
+                onClick={() => connectMailbox(provider)}
               />
             </div>
           )}

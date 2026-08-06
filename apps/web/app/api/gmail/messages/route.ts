@@ -1,11 +1,4 @@
-import {
-  GmailError,
-  getMessage,
-  getOrCreateLabel,
-  listMessages,
-  moveToAutoOrganizedLabel,
-  restoreFromAutoOrganizedLabel,
-} from "@ssakmail/gmail";
+import { MailError } from "@ssakmail/mail";
 import { autoOrganizeMessages } from "@ssakmail/preference";
 import {
   filterUnwantedMessages,
@@ -14,19 +7,18 @@ import {
   recommendMessageForConsentedUser,
 } from "@ssakmail/preference/cloudflare";
 import type { NextRequest } from "next/server";
-import { preferenceGmailRoute } from "../../../../lib/preference-route";
+import { preferenceMailRoute } from "../../../../lib/preference-route";
 
 export async function GET(request: NextRequest) {
   const cursor = request.nextUrl.searchParams.get("cursor") ?? undefined;
-  return preferenceGmailRoute(request, async (env, email, accessToken) => {
-    const page = await listMessages(accessToken, undefined, cursor);
+  return preferenceMailRoute(request, async (env, email, mail) => {
+    const page = await mail.listInbox(cursor);
     const messages = await filterUnwantedMessages(env, email, page.messages);
     const consent = await getConsent(env, email);
     const excludedIds =
       consent.consented && consent.autoOrganizeEnabled
         ? await getAutoOrganizeExcludedIds(env, email, messages)
         : new Set<string>();
-    let labelPromise: ReturnType<typeof getOrCreateLabel> | undefined;
     return {
       messages: await autoOrganizeMessages(
         messages,
@@ -40,33 +32,25 @@ export async function GET(request: NextRequest) {
             await recommendMessageForConsentedUser(
               env,
               email,
-              await getMessage(accessToken, message.id),
+              await mail.getMessage(message.id),
             )
           ).recommendation;
         },
         async (id) => {
           if ((await getAutoOrganizeExcludedIds(env, email, [{ id }])).has(id))
             return false;
-          if (!labelPromise) labelPromise = getOrCreateLabel(accessToken);
-          const labelId = (await labelPromise).id;
-          if (!labelId) return false;
-          const labels = await moveToAutoOrganizedLabel(
-            accessToken,
-            id,
-            labelId,
-          );
-          const moved = labels.includes(labelId) && !labels.includes("INBOX");
+          if (!(await mail.moveToAutoOrganized(id))) return false;
+          // The user may have restored the message while the move was running.
           if (
-            moved &&
             (await getAutoOrganizeExcludedIds(env, email, [{ id }])).has(id)
           ) {
-            await restoreFromAutoOrganizedLabel(accessToken, id, labelId);
+            await mail.restoreFromAutoOrganized(id);
             return false;
           }
-          return moved;
+          return true;
         },
         (error) =>
-          !(error instanceof GmailError) ||
+          !(error instanceof MailError) ||
           (error.status !== 401 &&
             error.status !== 403 &&
             error.status !== 429),

@@ -2,8 +2,11 @@ import axios from "axios";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   authorizeGoogleToken,
+  authorizeMailToken,
   GMAIL_SCOPE,
+  GRAPH_MAIL_SCOPE,
   hasGmailScope,
+  hasMailScope,
   refreshGoogleToken,
 } from "./index";
 
@@ -23,6 +26,33 @@ describe("Google OAuth token helpers", () => {
     expect(
       authorizeGoogleToken({ accessToken: "token", scope: GMAIL_SCOPE }),
     ).toEqual({ status: 200, accessToken: "token" });
+  });
+
+  it("accepts the Microsoft mail scope in either spelling", () => {
+    expect(hasMailScope("microsoft", `openid ${GRAPH_MAIL_SCOPE}`)).toBe(true);
+    expect(hasMailScope("microsoft", "openid Mail.ReadWrite")).toBe(true);
+    expect(hasMailScope("microsoft", "openid Mail.Read")).toBe(false);
+    expect(hasMailScope("microsoft", GMAIL_SCOPE)).toBe(false);
+  });
+
+  it("authorizes each provider against its own mail scope", () => {
+    expect(
+      authorizeMailToken({
+        provider: "microsoft",
+        accessToken: "token",
+        scope: `openid ${GRAPH_MAIL_SCOPE}`,
+      }),
+    ).toEqual({ status: 200, accessToken: "token", provider: "microsoft" });
+    expect(
+      authorizeMailToken({
+        provider: "microsoft",
+        accessToken: "token",
+        scope: GMAIL_SCOPE,
+      }),
+    ).toEqual({ status: 403 });
+    expect(
+      authorizeMailToken({ accessToken: "token", scope: GMAIL_SCOPE }),
+    ).toEqual({ status: 200, accessToken: "token", provider: "google" });
   });
 
   it("refreshes an expired access token without losing the refresh token", async () => {

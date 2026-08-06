@@ -124,6 +124,12 @@ h1 {
   border-radius: 20px;
   background: white;
 }
+.provider-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
 .mail-shell {
   margin-top: 28px;
   overflow: hidden;

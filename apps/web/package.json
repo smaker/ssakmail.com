@@ -16,6 +16,7 @@
     "@ssakmail/auth": "workspace:*",
     "@ssakmail/data-access": "workspace:*",
     "@ssakmail/gmail": "workspace:*",
+    "@ssakmail/mail": "workspace:*",
     "@ssakmail/preference": "workspace:*",
     "@ssakmail/ui": "workspace:*",
     "@tanstack/react-query": "5.101.4",

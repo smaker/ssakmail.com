@@ -1,7 +1,6 @@
-import { getMessage } from "@ssakmail/gmail";
 import { recommendMessage } from "@ssakmail/preference/cloudflare";
 import { type NextRequest, NextResponse } from "next/server";
-import { preferenceGmailRoute } from "../../../../lib/preference-route";
+import { preferenceMailRoute } from "../../../../lib/preference-route";
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as {
@@ -12,11 +11,11 @@ export async function POST(request: NextRequest) {
       { error: "메일 ID가 필요합니다." },
       { status: 400 },
     );
-  return preferenceGmailRoute(request, async (env, email, accessToken) =>
+  return preferenceMailRoute(request, async (env, email, mail) =>
     recommendMessage(
       env,
       email,
-      await getMessage(accessToken, body.messageId as string),
+      await mail.getMessage(body.messageId as string),
     ),
   );
 }

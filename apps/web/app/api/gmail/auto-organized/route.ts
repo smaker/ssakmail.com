@@ -1,13 +1,7 @@
-import { findLabel, listMessagesByLabel } from "@ssakmail/gmail";
 import type { NextRequest } from "next/server";
-import { gmailRoute } from "../../../../lib/gmail-route";
+import { mailRoute } from "../../../../lib/mail-route";
 
 export async function GET(request: NextRequest) {
   const cursor = request.nextUrl.searchParams.get("cursor") ?? undefined;
-  return gmailRoute(request, async (accessToken) => {
-    const label = await findLabel(accessToken);
-    return label?.id
-      ? listMessagesByLabel(accessToken, label.id, undefined, cursor)
-      : { messages: [] };
-  });
+  return mailRoute(request, (mail) => mail.listAutoOrganized(cursor));
 }

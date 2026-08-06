@@ -119,6 +119,12 @@ h1 {
   border-radius: var(--ssak-radius-lg);
   background: rgba(255, 255, 255, 0.72);
 }
+.provider-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
 .mail-shell {
   width: 100%;
   max-width: 1600px;
