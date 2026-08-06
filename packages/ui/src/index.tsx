@@ -4,6 +4,7 @@ import { statusQueryOptions } from "@ssakmail/data-access";
 import { useQuery } from "@tanstack/react-query";
 
 export { MailApp, mailViewState } from "./mail";
+export { PRICING_PLANS, PricingPlans } from "./pricing";
 export { PrivacyPolicy } from "./privacy";
 export { SiteFooter } from "./site-footer";
 export { TermsOfService } from "./terms";

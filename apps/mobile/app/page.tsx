@@ -5,7 +5,10 @@ export default function Home() {
     <main>
       <header>
         <strong>싹메일</strong>
-        <span>mobile</span>
+        <div>
+          <a href="/pricing">요금제</a>
+          <span>mobile</span>
+        </div>
       </header>
       <section className="phone-card">
         <p className="eyebrow">SSAKMAIL MOBILE</p>

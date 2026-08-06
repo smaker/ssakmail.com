@@ -7,7 +7,10 @@ export default function Home() {
     <main>
       <nav>
         <strong>싹메일</strong>
-        <span className="site-domain">ssakmail.com</span>
+        <div>
+          <a href="/pricing">요금제</a>
+          <span className="site-domain">ssakmail.com</span>
+        </div>
       </nav>
       <div className="hero">
         <p className="eyebrow">SIMPLE MAIL, CLEAR MESSAGE</p>
