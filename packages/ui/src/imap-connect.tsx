@@ -52,7 +52,7 @@ export const imapFormError = (values: ImapFormValues) => {
   return undefined;
 };
 
-export function ImapConnectForm() {
+export function ImapConnectForm({ available = true }: { available?: boolean }) {
   const [values, setValues] = useState(initialImapForm);
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
@@ -74,11 +74,25 @@ export function ImapConnectForm() {
     });
     setPending(false);
     if (result?.error)
+      // NextAuth forwards the message the mail server actually caused.
       setError(
-        "메일 서버에 로그인하지 못했습니다. IMAP 사용 설정과 앱 비밀번호를 확인해주세요.",
+        result.error === "CredentialsSignin"
+          ? "메일 서버에 로그인하지 못했습니다. IMAP 사용 설정과 앱 비밀번호를 확인해주세요."
+          : result.error,
       );
     else window.location.assign("/");
   };
+
+  if (!available)
+    return (
+      <section className="imap-form">
+        <h3>다른 메일 계정 연결</h3>
+        <small>
+          네이버·다음·카카오 등 IMAP 메일 연결은 아직 준비 중입니다. 그동안
+          Google 계정으로 이용해주세요.
+        </small>
+      </section>
+    );
 
   return (
     <form className="imap-form" onSubmit={submit}>

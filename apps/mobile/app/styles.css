@@ -488,6 +488,11 @@ dialog::backdrop {
   color: var(--ssak-ink-subtle);
   font-size: 13px;
 }
+.provider-note {
+  display: block;
+  margin-top: 12px;
+  color: var(--ssak-ink-muted);
+}
 .imap-form {
   display: grid;
   gap: 12px;

@@ -46,6 +46,7 @@ type AutoOrganizeSettingsResponse = {
   enabled: boolean;
   confidenceThreshold: number;
 };
+export type MailProviderAvailability = Record<MailProvider, boolean>;
 type MailFilter = "all" | "cleanup" | CleanupCategory;
 type Mailbox = "inbox" | "auto-organized";
 
@@ -202,19 +203,15 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const provider = mailAccount?.provider ?? "google";
   const mailboxConnected = mailAccount?.connected && !mailAccount.error;
   const state = mailViewState(status, mailboxConnected ?? false);
-  const authProviders = useQuery({
-    queryKey: ["auth", "providers"],
+  const mailProviders = useQuery({
+    queryKey: ["mail", "providers"],
     queryFn: async () =>
-      (
-        await axios.get<Record<string, { id: string; name: string }>>(
-          "/api/auth/providers",
-        )
-      ).data,
+      (await axios.get<MailProviderAvailability>("/api/mail-providers")).data,
     staleTime: Number.POSITIVE_INFINITY,
   });
-  const microsoftAvailable = Boolean(
-    authProviders.data?.[AUTH_PROVIDER_ID.microsoft],
-  );
+  // Treat an unanswered probe as available so the buttons never flash disabled.
+  const microsoftAvailable = mailProviders.data?.microsoft !== false;
+  const imapAvailable = mailProviders.data?.imap !== false;
 
   const messages = useInfiniteQuery({
     queryKey: mailboxQueryKey(mailbox),
@@ -412,17 +409,22 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               signIn(AUTH_PROVIDER_ID.google, { callbackUrl: "/" })
             }
           />
-          {microsoftAvailable && (
-            <Button
-              label="Microsoft로 로그인"
-              variant="secondary"
-              onClick={() =>
-                signIn(AUTH_PROVIDER_ID.microsoft, { callbackUrl: "/" })
-              }
-            />
-          )}
+          <Button
+            label="Microsoft로 로그인"
+            variant="secondary"
+            isDisabled={!microsoftAvailable}
+            onClick={() =>
+              signIn(AUTH_PROVIDER_ID.microsoft, { callbackUrl: "/" })
+            }
+          />
         </div>
-        <ImapConnectForm />
+        {!microsoftAvailable && (
+          <small className="provider-note">
+            Microsoft 계정 로그인은 아직 준비 중입니다. 그동안 Google 계정이나
+            아래의 다른 메일 계정으로 이용해주세요.
+          </small>
+        )}
+        <ImapConnectForm available={imapAvailable} />
       </section>
     );
   }

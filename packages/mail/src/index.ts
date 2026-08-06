@@ -222,6 +222,16 @@ export function mailClient(
     : googleClient(credentials.accessToken);
 }
 
+/** False outside the Workers runtime, where raw TCP does not exist. */
+export async function isImapRuntimeAvailable() {
+  try {
+    await imapConnect();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Throws ImapError(403) when the server rejects the sign-in. */
 export async function verifyImapCredentials(credentials: ImapCredentials) {
   await withImap(await imapConnect(), credentials, async () => undefined);
