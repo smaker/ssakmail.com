@@ -324,33 +324,83 @@ dialog p {
   position: fixed;
   z-index: 40;
   display: grid;
-  min-width: 180px;
+  gap: 2px;
+  min-width: 208px;
   padding: 6px;
-  border: 1px solid var(--ssak-line-strong);
-  border-radius: var(--ssak-radius-sm);
-  background: var(--ssak-surface);
-  box-shadow: var(--ssak-shadow-md);
+  border: 1px solid rgba(24, 53, 31, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow:
+    0 1px 2px rgba(24, 53, 31, 0.06),
+    0 18px 44px rgba(20, 45, 24, 0.16);
+  backdrop-filter: blur(18px);
+  transform-origin: top left;
+  animation: context-menu-in 130ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+@keyframes context-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(-4px);
+  }
 }
 .context-menu button {
-  padding: 9px 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 11px;
   background: none;
   color: var(--ssak-ink);
   font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
   text-align: left;
   cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.context-menu button::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
 }
 .context-menu button:hover,
 .context-menu button:focus-visible {
-  background: var(--ssak-brand-tint);
+  background: var(--ssak-brand-soft);
+  color: var(--ssak-brand);
+  outline: none;
+}
+.context-menu button:hover::before,
+.context-menu button:focus-visible::before {
+  opacity: 1;
 }
 .context-menu .context-menu-danger {
   color: #a8332b;
+  /* 되돌릴 수 없는 항목이라 구분선으로 위쪽 항목과 떼어 놓는다 */
+  margin-top: 5px;
+  border-top: 1px solid rgba(24, 53, 31, 0.08);
+  border-radius: 0 0 11px 11px;
+  padding-top: 12px;
 }
 .context-menu .context-menu-danger:hover,
 .context-menu .context-menu-danger:focus-visible {
-  background: #f7e3e1;
+  background: #fae5e3;
+  color: #8d271f;
+}
+@media (prefers-reduced-motion: reduce) {
+  .context-menu {
+    animation: none;
+  }
+  .context-menu button {
+    transition: none;
+  }
 }
 .message-list-sentinel {
   display: grid;
@@ -361,6 +411,8 @@ dialog p {
 .message-row {
   /* 롱프레스로 컨텍스트 메뉴를 여는 동안 iOS 기본 콜아웃이 뜨지 않게 한다 */
   -webkit-touch-callout: none;
+  position: relative;
+  overflow: hidden;
   display: grid;
   width: 100%;
   height: auto;
@@ -383,6 +435,31 @@ dialog p {
 .message-row strong {
   overflow-wrap: anywhere;
   line-height: 1.45;
+}
+/* 롱프레스가 얼마나 남았는지 보여주는 진행 바. 길이는 LONG_PRESS_MS와 맞춘다. */
+.message-row--pressing::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--ssak-brand);
+  animation: long-press-fill 500ms linear forwards;
+}
+@keyframes long-press-fill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .message-row--pressing::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
+  }
 }
 .message-row[aria-pressed="true"] {
   background: var(--ssak-brand-soft);

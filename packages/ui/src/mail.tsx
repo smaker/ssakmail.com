@@ -30,6 +30,8 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ImapConnectForm } from "./imap-connect";
 
+/** 진행 표시 애니메이션(styles.css)과 같은 길이를 써야 채워지는 순간 메뉴가 뜬다. */
+const LONG_PRESS_MS = 500;
 const GMAIL_SCOPE = "https://mail.google.com/";
 const GRAPH_MAIL_SCOPE = "https://graph.microsoft.com/Mail.ReadWrite";
 const MICROSOFT_IDENTITY_SCOPE = "openid email profile offline_access";
@@ -192,6 +194,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const [aiProcessingConsent, setAiProcessingConsent] = useState(false);
   const [overseasTransferConsent, setOverseasTransferConsent] = useState(false);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number }>();
+  const [pressingId, setPressingId] = useState<string>();
   const deleteDialog = useRef<HTMLDialogElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const longPress = useRef<{
@@ -395,6 +398,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
 
   // 손가락이 10px 넘게 움직이면 스크롤로 보고 롱프레스를 취소한다.
   const cancelLongPress = useCallback(() => {
+    setPressingId(undefined);
     if (longPress.current === null) return;
     clearTimeout(longPress.current.timer);
     longPress.current = null;
@@ -406,14 +410,18 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
     if (event.pointerType !== "touch") return;
     cancelLongPress();
     const { clientX, clientY } = event;
+    setPressingId(id);
     longPress.current = {
       x: clientX,
       y: clientY,
       timer: setTimeout(() => {
         longPress.current = null;
+        setPressingId(undefined);
+        // 메뉴가 열렸다는 신호. 지원하지 않는 기기에서는 조용히 넘어간다.
+        navigator.vibrate?.(15);
         selectMessage(id);
         setMenu({ id, x: clientX, y: clientY });
-      }, 500),
+      }, LONG_PRESS_MS),
     };
   };
   const moveLongPress = (event: { clientX: number; clientY: number }) => {
@@ -749,7 +757,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
             <Button
               label={message.subject}
               variant="ghost"
-              className="message-row"
+              className={`message-row ${pressingId === message.id ? "message-row--pressing" : ""}`}
               key={message.id}
               aria-pressed={selectedId === message.id}
               onClick={() => selectMessage(message.id)}
@@ -789,8 +797,8 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               // 메뉴 안을 눌렀을 때 바깥 클릭 닫기가 먼저 걸리지 않게 한다
               onPointerDown={(event) => event.stopPropagation()}
               style={{
-                left: Math.min(menu.x, window.innerWidth - 200),
-                top: Math.min(menu.y, window.innerHeight - 160),
+                left: Math.min(menu.x, window.innerWidth - 224),
+                top: Math.min(menu.y, window.innerHeight - 200),
               }}
             >
               {mailbox === "auto-organized" && (
