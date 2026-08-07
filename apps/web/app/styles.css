@@ -235,6 +235,10 @@ h1 {
   gap: 4px;
   min-width: 0;
 }
+/* 동의문이 길어도 저장 버튼이 0px까지 줄어들지 않게 한다 */
+.preference-settings > :last-child {
+  flex: none;
+}
 .preference-settings small,
 .preference-settings a {
   font-size: 13px;

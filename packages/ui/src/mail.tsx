@@ -580,8 +580,13 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               />
               <small>
                 각 동의를 거부할 수 있으며 Gmail 읽기·수동 삭제에는 불이익이
-                없습니다.
+                없습니다. 두 항목에 모두 체크해야 저장 버튼이 켜집니다.
               </small>
+              {enableAi.isError && (
+                <small role="alert">
+                  동의를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.
+                </small>
+              )}
             </div>
           )}
           {consent.data?.consented && (
@@ -647,7 +652,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
           />
         ) : (
           <Button
-            label={enableAi.isPending ? "동의 처리 중" : "AI 분석에 동의"}
+            label={enableAi.isPending ? "저장 중" : "동의하고 저장"}
             variant="primary"
             isLoading={enableAi.isPending}
             isDisabled={
