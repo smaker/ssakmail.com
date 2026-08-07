@@ -191,7 +191,9 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const [settingsOpen, setSettingsOpen] = useState<boolean>();
   const [aiProcessingConsent, setAiProcessingConsent] = useState(false);
   const [overseasTransferConsent, setOverseasTransferConsent] = useState(false);
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number }>();
   const deleteDialog = useRef<HTMLDialogElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const mailAccount = (
     session as
@@ -385,6 +387,26 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       removeMessage(id, sourceMailbox);
     },
   });
+
+  // 메뉴가 떠 있는 동안만 바깥 클릭·Esc·스크롤을 듣는다.
+  useEffect(() => {
+    if (!menu) return;
+    menuRef.current?.querySelector("button")?.focus();
+    const close = () => setMenu(undefined);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("pointerdown", close);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [menu]);
 
   if (state === "loading")
     return (
@@ -692,6 +714,15 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               key={message.id}
               aria-pressed={selectedId === message.id}
               onClick={() => selectMessage(message.id)}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                selectMessage(message.id);
+                setMenu({
+                  id: message.id,
+                  x: event.clientX,
+                  y: event.clientY,
+                });
+              }}
             >
               <strong>{message.subject}</strong>
               {categoryLabel(message.category) && (
@@ -705,6 +736,62 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               <small>{messageDate(message.date)}</small>
             </Button>
           ))}
+          {menu && (
+            <div
+              className="context-menu"
+              ref={menuRef}
+              role="menu"
+              aria-label="메일 작업"
+              // 메뉴 안을 눌렀을 때 바깥 클릭 닫기가 먼저 걸리지 않게 한다
+              onPointerDown={(event) => event.stopPropagation()}
+              style={{
+                left: Math.min(menu.x, window.innerWidth - 200),
+                top: Math.min(menu.y, window.innerHeight - 160),
+              }}
+            >
+              {mailbox === "auto-organized" && (
+                <button
+                  onClick={() => {
+                    setMenu(undefined);
+                    restore.mutate(menu.id);
+                  }}
+                  role="menuitem"
+                  type="button"
+                >
+                  받은편지함으로 복원
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setMenu(undefined);
+                  trash.mutate({ id: menu.id, sourceMailbox: mailbox });
+                }}
+                role="menuitem"
+                type="button"
+              >
+                휴지통으로 이동
+              </button>
+              <button
+                className="context-menu-danger"
+                onClick={() => {
+                  setMenu(undefined);
+                  if (
+                    window.confirm(
+                      "이 메일을 영구 삭제할까요? 되돌릴 수 없습니다.",
+                    )
+                  )
+                    permanentlyDelete.mutate({
+                      id: menu.id,
+                      sourceMailbox: mailbox,
+                    });
+                }}
+                role="menuitem"
+                type="button"
+              >
+                영구 삭제
+              </button>
+            </div>
+          )}
           {hasNextPage && (
             <div className="message-list-sentinel" ref={loadMoreRef}>
               {isFetchingNextPage ? (

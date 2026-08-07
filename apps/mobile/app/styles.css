@@ -308,6 +308,37 @@ dialog p {
 .message-list-header h2 {
   margin: 0;
 }
+.context-menu {
+  position: fixed;
+  z-index: 40;
+  display: grid;
+  min-width: 180px;
+  padding: 6px;
+  border: 1px solid var(--ssak-line-strong);
+  border-radius: var(--ssak-radius-sm);
+  background: var(--ssak-surface);
+  box-shadow: 0 14px 44px rgba(38, 70, 40, 0.18);
+}
+.context-menu button {
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ssak-ink);
+  font: inherit;
+  text-align: left;
+}
+.context-menu button:hover,
+.context-menu button:focus-visible {
+  background: var(--ssak-brand-tint);
+}
+.context-menu .context-menu-danger {
+  color: #a8332b;
+}
+.context-menu .context-menu-danger:hover,
+.context-menu .context-menu-danger:focus-visible {
+  background: #f7e3e1;
+}
 .message-list-sentinel {
   display: grid;
   gap: 8px;
