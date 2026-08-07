@@ -194,6 +194,11 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const [menu, setMenu] = useState<{ id: string; x: number; y: number }>();
   const deleteDialog = useRef<HTMLDialogElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const longPress = useRef<{
+    timer: ReturnType<typeof setTimeout>;
+    x: number;
+    y: number;
+  } | null>(null);
   const queryClient = useQueryClient();
   const mailAccount = (
     session as
@@ -387,6 +392,40 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       removeMessage(id, sourceMailbox);
     },
   });
+
+  // 손가락이 10px 넘게 움직이면 스크롤로 보고 롱프레스를 취소한다.
+  const cancelLongPress = useCallback(() => {
+    if (longPress.current === null) return;
+    clearTimeout(longPress.current.timer);
+    longPress.current = null;
+  }, []);
+  const startLongPress = (
+    id: string,
+    event: { pointerType: string; clientX: number; clientY: number },
+  ) => {
+    if (event.pointerType !== "touch") return;
+    cancelLongPress();
+    const { clientX, clientY } = event;
+    longPress.current = {
+      x: clientX,
+      y: clientY,
+      timer: setTimeout(() => {
+        longPress.current = null;
+        selectMessage(id);
+        setMenu({ id, x: clientX, y: clientY });
+      }, 500),
+    };
+  };
+  const moveLongPress = (event: { clientX: number; clientY: number }) => {
+    const pressed = longPress.current;
+    if (!pressed) return;
+    if (
+      Math.abs(event.clientX - pressed.x) > 10 ||
+      Math.abs(event.clientY - pressed.y) > 10
+    )
+      cancelLongPress();
+  };
+  useEffect(() => cancelLongPress, [cancelLongPress]);
 
   // 메뉴가 떠 있는 동안만 바깥 클릭·Esc·스크롤을 듣는다.
   useEffect(() => {
@@ -716,6 +755,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               onClick={() => selectMessage(message.id)}
               onContextMenu={(event) => {
                 event.preventDefault();
+                cancelLongPress();
                 selectMessage(message.id);
                 setMenu({
                   id: message.id,
@@ -723,6 +763,10 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
                   y: event.clientY,
                 });
               }}
+              onPointerCancel={cancelLongPress}
+              onPointerDown={(event) => startLongPress(message.id, event)}
+              onPointerMove={moveLongPress}
+              onPointerUp={cancelLongPress}
             >
               <strong>{message.subject}</strong>
               {categoryLabel(message.category) && (

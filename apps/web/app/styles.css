@@ -359,6 +359,8 @@ dialog p {
   padding: 16px 0 4px;
 }
 .message-row {
+  /* 롱프레스로 컨텍스트 메뉴를 여는 동안 iOS 기본 콜아웃이 뜨지 않게 한다 */
+  -webkit-touch-callout: none;
   display: grid;
   width: 100%;
   height: auto;
