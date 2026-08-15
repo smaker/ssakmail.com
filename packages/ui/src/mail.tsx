@@ -2,6 +2,8 @@
 
 import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
+import { Icon } from "@astryxdesign/core/Icon";
+import { IconButton } from "@astryxdesign/core/IconButton";
 import { VStack } from "@astryxdesign/core/Layout";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { Slider } from "@astryxdesign/core/Slider";
@@ -696,10 +698,19 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
         >
           <div className="message-list-header">
             <h2>{mailbox === "inbox" ? "받은편지함" : "싹메일 자동정리함"}</h2>
-            <Button
+            <IconButton
+              className="message-collapse-button"
               label={detailCollapsed ? "본문 펼치기" : "본문 접기"}
+              tooltip={detailCollapsed ? "본문 펼치기" : "본문 접기"}
               variant="ghost"
-              size="sm"
+              size="md"
+              icon={
+                <Icon
+                  icon="chevronDown"
+                  size="sm"
+                  className={`message-collapse-icon ${detailCollapsed ? "" : "message-collapse-icon--expanded"}`}
+                />
+              }
               aria-expanded={!detailCollapsed}
               aria-controls="message-detail"
               onClick={() => setDetailCollapsed((collapsed) => !collapsed)}
@@ -897,8 +908,9 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
         </div>
         <article
           id="message-detail"
-          className={`message-detail ${selectedId ? "message-detail--open" : ""}`}
-          hidden={detailCollapsed}
+          className={`message-detail ${selectedId ? "message-detail--open" : ""} ${detailCollapsed ? "message-detail--collapsed" : ""}`}
+          aria-hidden={detailCollapsed}
+          inert={detailCollapsed || undefined}
         >
           {variant === "mobile" && selectedId && (
             <Button
@@ -932,7 +944,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
               <h2>{detail.data.subject}</h2>
               <time>{messageDate(detail.data.date)}</time>
               {detail.data.htmlBody ? (
-                <section className="message-body">
+                <section className="message-body message-body--html">
                   {/<img\b/i.test(detail.data.htmlBody) && (
                     <Button
                       label={showImages ? "이미지 숨기기" : "이미지 보기"}

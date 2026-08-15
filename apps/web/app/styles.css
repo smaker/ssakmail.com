@@ -302,9 +302,10 @@ dialog p {
   display: grid;
   grid-template-columns: minmax(320px, 32%) minmax(0, 1fr);
   min-height: clamp(520px, 62vh, 820px);
+  transition: grid-template-columns 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .mail-content--collapsed {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
 }
 .message-list {
   min-width: 0;
@@ -323,6 +324,16 @@ dialog p {
 }
 .message-list-header h2 {
   margin: 0;
+}
+.message-collapse-button {
+  flex: none;
+}
+.message-collapse-icon {
+  display: inline-flex;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.message-collapse-icon--expanded {
+  transform: rotate(180deg);
 }
 .context-menu {
   position: fixed;
@@ -519,7 +530,27 @@ dialog p {
 }
 .message-detail {
   min-width: 0;
+  min-height: 0;
   padding: 34px;
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity 160ms ease,
+    transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 0s;
+}
+.message-detail--collapsed {
+  visibility: hidden;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(var(--spacing-2, 8px));
+  pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 280ms;
 }
 .message-detail[hidden] {
   display: none;
@@ -545,10 +576,18 @@ dialog p {
   line-height: 1.7;
   white-space: pre-wrap;
 }
+.message-body--html {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
 .message-html {
   display: block;
+  flex: 1 1 auto;
   width: 100%;
-  min-height: 50vh;
+  height: 100%;
+  min-height: 0;
   margin-top: var(--spacing-3, 12px);
   border: 0;
 }
@@ -584,6 +623,9 @@ dialog::backdrop {
   .message-detail {
     padding: 44px 52px;
   }
+  .mail-content.mail-content--collapsed {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
+  }
 }
 @media (max-width: 640px) {
   main {
@@ -598,8 +640,10 @@ dialog::backdrop {
   h1 {
     font-size: 52px;
   }
-  .mail-content {
+  .mail-content,
+  .mail-content.mail-content--collapsed {
     grid-template-columns: 1fr;
+    transition: none;
   }
   .preference-settings {
     align-items: stretch;
@@ -614,11 +658,26 @@ dialog::backdrop {
   .message-detail--open {
     display: block;
   }
+  .message-detail--collapsed {
+    display: none;
+  }
   .message-list--selected {
     display: none;
   }
+  .message-body--html {
+    display: flex;
+    flex-direction: column;
+  }
+  .message-html {
+    min-height: 50vh;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
+  .mail-content,
+  .message-collapse-icon,
+  .message-detail {
+    transition: none;
+  }
   .message-row {
     transition: none;
   }
