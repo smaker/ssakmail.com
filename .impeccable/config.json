@@ -1,0 +1,15 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": ["packages/ui/src/mail.tsx"],
+        "createdAt": "2026-08-15T17:31:18.880Z",
+        "reason": "false positive: line 116 is an intentional regex that sanitizes incoming email img tags; no placeholder image is rendered"
+      }
+    ]
+  }
+}
