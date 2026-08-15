@@ -33,6 +33,14 @@ MORE CLI:
   upgrade --apply    run after any @astryxdesign/core bump
 <!-- ASTRYX:END -->
 
+## UI/프론트엔드 디자인 workflow (필수)
+
+- UI·프론트엔드 작업, 리뷰, 리디자인, 폴리시는 반드시 `StyleSeed`와 `Impeccable`을 함께 사용한다.
+- 작업 시작 시 `$impeccable <command>`로 현재 제품·디자인 맥락과 해당 작업 playbook을 확인한다. 새 제품 맥락이 없으면 `$impeccable init`, 기존 시각 시스템을 기록할 때는 `$impeccable document`를 사용한다.
+- 구현 전에는 `$styleseed-design-review`로 대상 파일 또는 UI 디렉터리를 근거 기반 검토하고, 점수·라인별 위반·우선순위 수정안을 기록한다. StyleSeed는 리뷰 전용이며 요청 없이 자동 수정하지 않는다.
+- 구현 후에는 StyleSeed를 다시 실행해 **100/100점**을 품질 게이트로 확인하고, 발견된 모든 문제를 수정한 뒤 재검토한다. 100점 미만이면 완료로 처리하지 않는다. 상태·접근성·반응형·동작 관련 Impeccable 검토도 해당 명령(`audit`, `critique`, `polish`, `harden` 등)으로 완료한다.
+- 두 도구를 사용할 수 없는 경우 임의로 생략하지 말고, 차단 사유와 대체 검증을 결과에 명시한다. 백엔드 전용 변경에는 이 workflow를 적용하지 않는다.
+
 ## 커밋 메시지 규칙
 
 - Conventional Commits 형식인 `<type>(<scope>): <한국어 요약>`을 사용한다. `scope`는 생략할 수 있다.
