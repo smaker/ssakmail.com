@@ -52,6 +52,10 @@ type AutoOrganizeSettingsResponse = {
   enabled: boolean;
   confidenceThreshold: number;
 };
+type AutoOrganizeSettings = Pick<
+  Consent,
+  "autoOrganizeEnabled" | "autoOrganizeConfidenceThreshold"
+>;
 export type MailProviderAvailability = Record<MailProvider, boolean>;
 type MailFilter = "all" | "cleanup" | CleanupCategory;
 type Mailbox = "inbox" | "auto-organized";
@@ -125,6 +129,14 @@ export const emailHtmlDocument = (html: string, showImages: boolean) => {
 export const preferenceLabel = (score: number) =>
   score >= 70 ? "선호 가능성 높음" : score >= 40 ? "확인 필요" : "정리 추천";
 
+export const autoOrganizeSettingsChanged = (
+  saved: AutoOrganizeSettings,
+  draft: AutoOrganizeSettings,
+) =>
+  saved.autoOrganizeEnabled !== draft.autoOrganizeEnabled ||
+  saved.autoOrganizeConfidenceThreshold !==
+    draft.autoOrganizeConfidenceThreshold;
+
 export const shouldRemoveMessageAfterFeedback = (action: FeedbackAction) =>
   action === "unwanted";
 
@@ -187,6 +199,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const [selectedId, setSelectedId] = useState<string>();
   const [mailbox, setMailbox] = useState<Mailbox>("inbox");
   const [filter, setFilter] = useState<MailFilter>("all");
+  const [autoOrganizeEnabled, setAutoOrganizeEnabled] = useState(true);
   const [confidenceThreshold, setConfidenceThreshold] = useState(70);
   const [showImages, setShowImages] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
@@ -256,9 +269,10 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
     enabled: state === "mailbox",
   });
   useEffect(() => {
-    if (consent.data?.autoOrganizeConfidenceThreshold)
-      setConfidenceThreshold(consent.data.autoOrganizeConfidenceThreshold);
-  }, [consent.data?.autoOrganizeConfidenceThreshold]);
+    if (!consent.data) return;
+    setAutoOrganizeEnabled(consent.data.autoOrganizeEnabled);
+    setConfidenceThreshold(consent.data.autoOrganizeConfidenceThreshold);
+  }, [consent.data]);
   const detail = useQuery({
     queryKey: ["gmail", "messages", selectedId],
     queryFn: async () =>
@@ -320,6 +334,12 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       });
     },
   });
+  const autoOrganizeSettingsDirty = consent.data
+    ? autoOrganizeSettingsChanged(consent.data, {
+        autoOrganizeEnabled,
+        autoOrganizeConfidenceThreshold: confidenceThreshold,
+      })
+    : false;
   const sendFeedback = (id: string, action: FeedbackAction) =>
     axios.post("/api/preferences/feedback", { messageId: id, action });
   const removeMessage = (id: string, sourceMailbox = mailbox) => {
@@ -593,15 +613,10 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
             <VStack gap={2} className="auto-organize-settings">
               <Switch
                 label="선호도에 따라 싹메일 자동정리함으로 이동"
-                value={consent.data.autoOrganizeEnabled}
+                value={autoOrganizeEnabled}
                 width="auto"
                 isLoading={updateAutoOrganize.isPending}
-                onChange={(enabled) =>
-                  updateAutoOrganize.mutate({
-                    enabled,
-                    confidenceThreshold,
-                  })
-                }
+                onChange={setAutoOrganizeEnabled}
               />
               <Slider
                 label={`자동 정리 최소 신뢰도 ${confidenceThreshold}%`}
@@ -614,14 +629,22 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
                 valueDisplay="text"
                 formatValue={(value) => `${value}%`}
                 isDisabled={
-                  !consent.data.autoOrganizeEnabled ||
-                  updateAutoOrganize.isPending
+                  !autoOrganizeEnabled || updateAutoOrganize.isPending
                 }
                 onChange={setConfidenceThreshold}
-                onChangeEnd={(value: number) =>
+                onChangeEnd={setConfidenceThreshold}
+              />
+              <Button
+                label={updateAutoOrganize.isPending ? "저장 중" : "설정 저장"}
+                variant="primary"
+                isLoading={updateAutoOrganize.isPending}
+                isDisabled={
+                  updateAutoOrganize.isPending || !autoOrganizeSettingsDirty
+                }
+                onClick={() =>
                   updateAutoOrganize.mutate({
-                    enabled: consent.data.autoOrganizeEnabled,
-                    confidenceThreshold: value,
+                    enabled: autoOrganizeEnabled,
+                    confidenceThreshold,
                   })
                 }
               />

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  autoOrganizeSettingsChanged,
   emailHtmlDocument,
   filterMessages,
   flattenMessagePages,
@@ -86,6 +87,21 @@ describe("preference labels", () => {
     [20, "정리 추천"],
   ] as const)("labels score %s", (score, expected) => {
     expect(preferenceLabel(score)).toBe(expected);
+  });
+});
+
+describe("auto-organize settings", () => {
+  const saved = {
+    autoOrganizeEnabled: true,
+    autoOrganizeConfidenceThreshold: 70,
+  };
+
+  it.each([
+    [saved, false],
+    [{ ...saved, autoOrganizeEnabled: false }, true],
+    [{ ...saved, autoOrganizeConfidenceThreshold: 75 }, true],
+  ] as const)("detects draft changes", (draft, expected) => {
+    expect(autoOrganizeSettingsChanged(saved, draft)).toBe(expected);
   });
 });
 
