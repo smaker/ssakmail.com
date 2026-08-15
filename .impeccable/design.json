@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-15T17:24:20Z",
+  "title": "Design System: 싹메일",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Forest Brand",
+        "canonical": "#285c31",
+        "tonalRamp": ["#1f4a28", "#285c31", "#6fbf73"]
+      },
+      "neutral-bg-web": {
+        "role": "neutral",
+        "displayName": "Web Leaf Background",
+        "canonical": "#f4f8f0",
+        "tonalRamp": ["#dce7d7", "#f4f8f0", "#ffffff"]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "Muted Surface",
+        "canonical": "#f7faf5",
+        "tonalRamp": ["#e2e9df", "#f7faf5", "#ffffff"]
+      },
+      "brand-soft": {
+        "role": "primary",
+        "displayName": "Brand Soft",
+        "canonical": "#dcefd5",
+        "tonalRamp": ["#cae6c3", "#dcefd5", "#f2f7ef"]
+      },
+      "danger": {
+        "role": "error",
+        "displayName": "Danger",
+        "canonical": "#a8332b",
+        "tonalRamp": ["#8d271f", "#a8332b", "#fae5e3"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Figtree Display",
+        "purpose": "Large Korean hero headlines and policy page titles."
+      },
+      "body": {
+        "displayName": "Figtree Body",
+        "purpose": "Mail metadata, explanatory copy, controls, and legal reading."
+      },
+      "label": {
+        "displayName": "Figtree Label",
+        "purpose": "Eyebrows and compact status labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ambient-low",
+        "value": "0 1px 2px rgba(24, 53, 31, 0.05)",
+        "purpose": "Sticky navigation at rest."
+      },
+      {
+        "name": "shell-medium",
+        "value": "0 10px 30px rgba(24, 53, 31, 0.08)",
+        "purpose": "Web mail shell and featured pricing surface."
+      },
+      {
+        "name": "dialog-high",
+        "value": "0 24px 80px rgba(20, 45, 24, 0.22)",
+        "purpose": "Destructive confirmation dialog."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-fast",
+        "value": "160ms ease",
+        "purpose": "Navigation background and color transitions."
+      },
+      {
+        "name": "context-menu-in",
+        "value": "130ms cubic-bezier(0.2, 0.9, 0.3, 1)",
+        "purpose": "Context menu scale-and-fade entrance."
+      },
+      {
+        "name": "long-press-fill",
+        "value": "500ms linear",
+        "purpose": "Progress cue before the mobile context menu opens."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "web-mobile",
+        "value": "640px"
+      },
+      {
+        "name": "mobile-card",
+        "value": "481px"
+      },
+      {
+        "name": "wide",
+        "value": "1440px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Navigation pill",
+      "kind": "nav",
+      "refersTo": "nav-pill",
+      "description": "Sticky translucent capsule framing product navigation.",
+      "html": "<nav class=\"gnb\"><strong>싹메일</strong><a href=\"/pricing\">요금제</a></nav>",
+      "css": ".gnb { position: sticky; top: 12px; padding: 9px 10px 9px 20px; border: 1px solid #dce7d7; border-radius: 999px; background: rgba(255,255,255,.78); box-shadow: 0 1px 2px rgba(24,53,31,.05); backdrop-filter: blur(14px); } .gnb a:hover { background: #dcefd5; color: #285c31; }"
+    },
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Short, high-confidence action for pricing and connection flows.",
+      "html": "<a class=\"pricing-cta\" href=\"/\">지금 시작하기</a>",
+      "css": ".pricing-cta { display: block; padding: 12px 16px; border-radius: 999px; background: #285c31; color: #fff; font-weight: 600; text-align: center; text-decoration: none; } .pricing-card--featured .pricing-cta { background: #1f4a28; }"
+    },
+    {
+      "name": "Mail row",
+      "kind": "custom",
+      "refersTo": "message-row",
+      "description": "Scannable message row with a low-contrast tint and explicit selected state.",
+      "html": "<button class=\"message-row\" aria-pressed=\"false\"><strong>메일 제목</strong><small>보낸 사람 · 오늘</small></button>",
+      "css": ".message-row { position: relative; display: grid; gap: 5px; margin-top: 9px; padding: 14px; border: 0; border-radius: 10px; background: #f2f7ef; color: #18351f; text-align: left; } .message-row[aria-pressed=\"true\"] { background: #dcefd5; box-shadow: inset 3px 0 #4d8c4a; }"
+    },
+    {
+      "name": "Destructive dialog",
+      "kind": "custom",
+      "refersTo": "dialog",
+      "description": "Final confirmation before an irreversible mail deletion.",
+      "html": "<dialog open><h2>이 메일을 영구 삭제할까요?</h2><div class=\"dialog-actions\"><button>취소</button><button>영구 삭제</button></div></dialog>",
+      "css": "dialog { width: calc(100% - 40px); max-width: 420px; padding: 28px; border: 0; border-radius: 22px; box-shadow: 0 24px 80px rgba(20,45,24,.22); } dialog::backdrop { background: rgba(14,30,17,.5); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Calm Sorting Desk",
+    "overview": "싹메일은 잎빛 배경, 짙은 녹색 잉크, 반투명 흰색 표면, Figtree 타이포그래피로 메일 정리 작업을 차분하게 만든다. 넓은 웹 히어로와 2열 작업면은 모바일의 단일 열 흐름으로 접히며, 캡슐 내비게이션과 부드러운 카드가 제품 전반의 연결 조직이다.",
+    "keyCharacteristics": [
+      "단일 Forest Brand 액센트",
+      "둥근 캡슐과 10–28px 카드 반경",
+      "낮은 불투명도의 녹색 그림자",
+      "명시적인 위험·오류 상태",
+      "웹 2열 / 모바일 1열 반응형 메일 작업면"
+    ],
+    "rules": [
+      {
+        "name": "The One Green Voice Rule",
+        "body": "일반 상호작용과 선택 상태에는 Forest Brand 계열만 사용하고, 빨강·노랑은 의미 있는 상태에만 사용한다.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tinted Depth Rule",
+        "body": "검은 단일 그림자 대신 녹색 계열의 낮은 불투명도와 레이어된 깊이를 사용한다.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Single-Family Rule",
+        "body": "제목·본문·컨트롤은 Figtree와 기존 fallback 순서를 공유한다.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do reuse --ssak-* and Astryx theme tokens before adding values.",
+      "Do preserve the web two-column and mobile one-column mail flow.",
+      "Do pair status color with text, labels, or controls.",
+      "Do honor prefers-reduced-motion for custom transitions."
+    ],
+    "donts": [
+      "Don't add rainbow status colors, emoji icons, or pure black text.",
+      "Don't mix sharp cards with the existing capsule and rounded-card language.",
+      "Don't turn recommendation or auto-organization into automatic permanent deletion.",
+      "Don't invent customer proof, pricing claims, or legal guarantees."
+    ]
+  }
+}
