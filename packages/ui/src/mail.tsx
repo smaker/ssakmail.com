@@ -31,6 +31,7 @@ import axios from "axios";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ImapConnectForm } from "./imap-connect";
+import { PasswordAuthForm } from "./password-auth";
 
 /** 진행 표시 애니메이션(styles.css)과 같은 길이를 써야 채워지는 순간 메뉴가 뜬다. */
 const LONG_PRESS_MS = 500;
@@ -496,6 +497,10 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       <section className="mail-state">
         <h2>내 메일함으로 시작하기</h2>
         <p>로그인 후 필요한 시점에만 메일 권한을 요청합니다.</p>
+        <PasswordAuthForm />
+        <p className="auth-separator" aria-hidden="true">
+          또는 외부 계정으로 계속하기
+        </p>
         <div className="provider-actions">
           <Button
             label="Google로 로그인"

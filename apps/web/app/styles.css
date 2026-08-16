@@ -13,6 +13,7 @@
   --ssak-ink-subtle: #728175;
   --ssak-line: #dce7d7;
   --ssak-line-strong: #caddc5;
+  --ssak-line-width: 1px;
   --ssak-brand: #285c31;
   --ssak-brand-soft: #dcefd5;
   --ssak-brand-tint: #f2f7ef;
@@ -841,4 +842,52 @@ dialog::backdrop {
 }
 .imap-form-error {
   color: #a50c25;
+}
+.password-auth {
+  margin-top: var(--spacing-6);
+  padding-top: var(--spacing-6);
+  border-top: var(--ssak-line-width) solid var(--ssak-line);
+}
+.password-auth h3 {
+  margin: 0;
+}
+.password-auth > p {
+  margin: var(--spacing-1) 0 0;
+  color: var(--ssak-ink-muted);
+}
+.password-auth-mode {
+  display: flex;
+  gap: var(--spacing-1);
+  margin: var(--spacing-4) 0 var(--spacing-3);
+  padding: 0;
+  border: 0;
+}
+.password-auth-mode button {
+  flex: 1;
+  min-height: calc(var(--spacing-10) + var(--spacing-1));
+  border: var(--ssak-line-width) solid var(--ssak-line-strong);
+  border-radius: var(--ssak-radius-sm);
+  background: var(--ssak-surface);
+  color: var(--ssak-ink-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.password-auth-mode button[data-active="true"] {
+  border-color: var(--ssak-brand);
+  background: var(--ssak-brand-soft);
+  color: var(--ssak-brand);
+}
+.password-auth-form {
+  margin: 0;
+}
+.password-auth-error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: var(--font-size-base);
+}
+.auth-separator {
+  margin: var(--spacing-5) 0 var(--spacing-3);
+  color: var(--ssak-ink-subtle);
+  font-size: var(--font-size-base);
 }

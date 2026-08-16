@@ -11,6 +11,33 @@ import type { JWT } from "next-auth/jwt";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import {
+  PASSWORD_PROVIDER_ID,
+  type PasswordAuthStore,
+  validatePasswordCredentials,
+  verifyPassword,
+} from "./password";
+
+export type {
+  PasswordAuthStore,
+  PasswordAuthUser,
+  PasswordDatabase,
+} from "./password";
+export {
+  allowPasswordSignup,
+  createPasswordAccount,
+  createPasswordAuthStore,
+  hashPassword,
+  isValidEmail,
+  normalizeEmail,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_PROVIDER_ID,
+  passwordError,
+  passwordUserFromRow,
+  validatePasswordCredentials,
+  verifyPassword,
+} from "./password";
 
 export type OAuthMailProvider = "google" | "microsoft";
 export type MailTokenProvider = OAuthMailProvider | "imap";
@@ -32,6 +59,8 @@ export const authorizationScope = (provider: OAuthMailProvider) =>
     : `${MICROSOFT_IDENTITY_SCOPE} ${GRAPH_MAIL_SCOPE}`;
 
 export type MailToken = JWT & {
+  /** Stable D1 identity for password accounts; OAuth keeps the legacy email key. */
+  identityKey?: string;
   provider?: MailTokenProvider;
   accessToken?: string;
   refreshToken?: string;
@@ -192,7 +221,9 @@ export const readImapCredentials = (
   return { host, port, user, password };
 };
 
-export function createAuthOptions(): NextAuthOptions {
+export function createAuthOptions(
+  dependencies: { passwordStore?: PasswordAuthStore } = {},
+): NextAuthOptions {
   return {
     providers: [
       GoogleProvider({
@@ -212,6 +243,36 @@ export function createAuthOptions(): NextAuthOptions {
             }),
           ]
         : []),
+      CredentialsProvider({
+        id: PASSWORD_PROVIDER_ID,
+        name: "싹메일 계정",
+        credentials: {
+          email: { label: "이메일", type: "email" },
+          password: { label: "비밀번호", type: "password" },
+        },
+        async authorize(credentials) {
+          if (!dependencies.passwordStore) return null;
+          const validated = validatePasswordCredentials({
+            email: credentials?.email ?? "",
+            password: credentials?.password ?? "",
+          });
+          if ("error" in validated) return null;
+          const store = dependencies.passwordStore;
+          if (
+            store.isRateLimited &&
+            (await store.isRateLimited(validated.email))
+          )
+            return null;
+          const user = await store.findByEmail(validated.email);
+          if (!user) return null;
+          if (!(await verifyPassword(validated.password, user))) {
+            if (store.recordFailure) await store.recordFailure(validated.email);
+            return null;
+          }
+          if (store.clearFailures) await store.clearFailures(validated.email);
+          return { id: user.id, email: user.email, name: user.name };
+        },
+      }),
       CredentialsProvider({
         id: IMAP_PROVIDER_ID,
         name: "IMAP 메일 계정",
@@ -234,6 +295,14 @@ export function createAuthOptions(): NextAuthOptions {
     callbacks: {
       async jwt({ token, account, user }) {
         const mailToken = token as MailToken;
+        if (account?.provider === PASSWORD_PROVIDER_ID)
+          return {
+            ...mailToken,
+            identityKey:
+              (user as { id?: string } | undefined)?.id ??
+              mailToken.identityKey,
+            error: undefined,
+          };
         if (account?.provider === IMAP_PROVIDER_ID) {
           const imap = (user as { imap?: ImapCredentials } | undefined)?.imap;
           return {

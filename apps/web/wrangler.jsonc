@@ -6,8 +6,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": true,
+  "routes": [{ "pattern": "ssakmail.com", "custom_domain": true }],
   "vars": {
-    "NEXTAUTH_URL": "https://ssakmail-web.dowon2308.workers.dev"
+    "NEXTAUTH_URL": "https://ssakmail.com"
   },
   "ai": { "binding": "AI" },
   "d1_databases": [

@@ -47,7 +47,10 @@ export async function billingSession(request: NextRequest) {
       ),
     };
   const { env } = await getCloudflareContext({ async: true });
-  return { email: token.email, env: env as unknown as BillingEnv };
+  return {
+    email: token.identityKey ?? token.email,
+    env: env as unknown as BillingEnv,
+  };
 }
 
 async function fetchPortOnePayment(paymentId: string, apiSecret: string) {

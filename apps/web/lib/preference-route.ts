@@ -19,7 +19,11 @@ async function context(request: NextRequest) {
       ),
     };
   const { env } = await getCloudflareContext({ async: true });
-  return { token, email: token.email, env: env as unknown as PreferenceEnv };
+  return {
+    token,
+    email: token.identityKey ?? token.email,
+    env: env as unknown as PreferenceEnv,
+  };
 }
 
 const errorResponse = (error: unknown) =>

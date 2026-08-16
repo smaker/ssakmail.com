@@ -271,6 +271,9 @@ importers:
       '@astryxdesign/theme-neutral':
         specifier: ^0.2.0
         version: 0.2.0(@astryxdesign/core@0.2.0(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
+      '@ssakmail/auth':
+        specifier: workspace:*
+        version: link:../auth
       '@ssakmail/data-access':
         specifier: workspace:*
         version: link:../data-access

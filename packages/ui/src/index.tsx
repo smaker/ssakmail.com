@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 
 export { ImapConnectForm } from "./imap-connect";
 export { MailApp, mailViewState } from "./mail";
+export { PasswordAuthForm } from "./password-auth";
 export { PRICING_PLANS, PricingPlans } from "./pricing";
 export { PrivacyPolicy } from "./privacy";
 export { SiteFooter } from "./site-footer";

@@ -11,6 +11,8 @@ Next.js monorepo for the ssakmail.com web and mobile experiences.
 
 Create one Google OAuth web client in testing mode and register the owner and designated test users. Add these authorized redirect URIs:
 
+- `https://ssakmail.com/api/auth/callback/google`
+- `https://m.ssakmail.com/api/auth/callback/google`
 - `https://ssakmail-web.dowon2308.workers.dev/api/auth/callback/google`
 - `https://ssakmail-mobile.dowon2308.workers.dev/api/auth/callback/google`
 - `http://localhost:3000/api/auth/callback/google`
@@ -19,6 +21,28 @@ Create one Google OAuth web client in testing mode and register the owner and de
 Store `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` with `wrangler secret put` for each Worker. Never commit `.dev.vars` or OAuth credentials.
 
 The app requests Google identity scopes at login, then requests `https://mail.google.com/` only when the user connects Gmail. Permanent deletion cannot be undone.
+
+## Email login and signup
+
+Email accounts are stored in the shared D1 database as PBKDF2 password hashes with per-account salts. Apply migrations `0006_auth_users.sql` and `0007_auth_rate_limits.sql` before deploying both apps. Login and signup attempts are rate-limited per account/source key. The web Worker exposes the signup form at `https://ssakmail.com`; the mobile experience uses `https://m.ssakmail.com`.
+
+## Custom domain
+
+The web Worker uses `ssakmail.com` and the mobile Worker uses `m.ssakmail.com` as Cloudflare Custom Domains. Cloudflare creates the certificate and DNS record for each exact hostname:
+
+```jsonc
+// apps/web/wrangler.jsonc
+"routes": [{ "pattern": "ssakmail.com", "custom_domain": true }],
+"vars": { "NEXTAUTH_URL": "https://ssakmail.com" }
+
+// apps/mobile/wrangler.jsonc
+"routes": [{ "pattern": "m.ssakmail.com", "custom_domain": true }],
+"vars": { "NEXTAUTH_URL": "https://m.ssakmail.com" }
+```
+
+Do not add `ssakmail.com/*` as a route. If `www.ssakmail.com` should also serve the web app, add it as a separate custom-domain entry after confirming that no other app owns `www`. Existing A records on the apex must be removed before Cloudflare can attach the web custom domain.
+
+After the custom domains are active, keep the matching `NEXTAUTH_URL` values and register both custom-domain callbacks above in Google and any Microsoft Entra application. The `workers.dev` callbacks remain documented for rollback.
 
 ## Microsoft OAuth
 
