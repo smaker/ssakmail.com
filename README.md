@@ -28,7 +28,14 @@ Email accounts are stored in the shared D1 database as PBKDF2 password hashes wi
 
 ## Custom domain
 
-The web Worker uses `ssakmail.com` and the mobile Worker uses `m.ssakmail.com` as Cloudflare Custom Domains. Cloudflare creates the certificate and DNS record for each exact hostname:
+The production routing is now active:
+
+- `https://ssakmail.com` → `ssakmail-web`
+- `https://m.ssakmail.com` → `ssakmail-mobile`
+
+Both hostnames are Cloudflare Custom Domains. Cloudflare manages their certificates and DNS records; the old apex A records were removed during the cutover.
+
+The matching Worker configuration is:
 
 ```jsonc
 // apps/web/wrangler.jsonc
@@ -40,14 +47,25 @@ The web Worker uses `ssakmail.com` and the mobile Worker uses `m.ssakmail.com` a
 "vars": { "NEXTAUTH_URL": "https://m.ssakmail.com" }
 ```
 
-Do not add `ssakmail.com/*` as a route. If `www.ssakmail.com` should also serve the web app, add it as a separate custom-domain entry after confirming that no other app owns `www`. Existing A records on the apex must be removed before Cloudflare can attach the web custom domain.
+Do not add `ssakmail.com/*` as a route. `www.ssakmail.com` is a separate hostname and must not be changed unless its current Worker ownership is intentionally migrated.
 
-After the custom domains are active, keep the matching `NEXTAUTH_URL` values and register both custom-domain callbacks above in Google and any Microsoft Entra application. The `workers.dev` callbacks remain documented for rollback.
+Keep the matching `NEXTAUTH_URL` values and register both custom-domain callbacks in Google and Microsoft Entra. The `workers.dev` callbacks remain available as rollback/diagnostic endpoints.
+
+To verify the cutover:
+
+```bash
+dig +short ssakmail.com A
+dig +short m.ssakmail.com A
+curl -I https://ssakmail.com/api/status
+curl -I https://m.ssakmail.com/api/status
+```
 
 ## Microsoft OAuth
 
 Register an Entra ID application and add these redirect URIs:
 
+- `https://ssakmail.com/api/auth/callback/azure-ad`
+- `https://m.ssakmail.com/api/auth/callback/azure-ad`
 - `https://ssakmail-web.dowon2308.workers.dev/api/auth/callback/azure-ad`
 - `https://ssakmail-mobile.dowon2308.workers.dev/api/auth/callback/azure-ad`
 - `http://localhost:3000/api/auth/callback/azure-ad`
@@ -70,7 +88,7 @@ Paid plans go through PortOne, so the underlying PG can be swapped by changing t
 - `PORTONE_API_SECRET` — V2 API secret, used for server-side payment lookup
 - `PORTONE_WEBHOOK_SECRET` — signing secret for webhook verification
 
-Register `https://ssakmail-web.dowon2308.workers.dev/api/payments/webhook` as the webhook endpoint. Until all four values exist, `/api/payments/prepare` answers `503` and no checkout starts.
+Register `https://ssakmail.com/api/payments/webhook` as the webhook endpoint. The `workers.dev` endpoint remains reachable for rollback while migrating the PortOne configuration. Until all four values exist, `/api/payments/prepare` answers `503` and no checkout starts.
 
 Prices live in `packages/billing` and are never read from the client: `prepare` writes a `PENDING` row, the browser opens the PortOne window, then `complete` (and the webhook) re-reads the payment from PortOne and approves it only when status, amount and currency all match. Both approval paths update the same `PENDING` row, so a duplicate arrival cannot extend a subscription twice.
 
@@ -94,4 +112,10 @@ pnpm --dir apps/web preview
 pnpm --dir apps/web deploy
 pnpm --dir apps/mobile preview
 pnpm --dir apps/mobile deploy
+```
+
+The deploy workflow applies pending D1 migrations once before the web/mobile deploy matrix. For a manual migration, run it from the web app directory:
+
+```bash
+pnpm --dir apps/web exec wrangler d1 migrations apply ssakmail-preferences --remote
 ```
