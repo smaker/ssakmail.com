@@ -8,7 +8,7 @@ import {
   isValidImapHost,
   isValidImapPort,
 } from "@ssakmail/mail";
-import { signIn } from "next-auth/react";
+import axios from "axios";
 import { type FormEvent, useState } from "react";
 
 export const CUSTOM_IMAP_PRESET = "custom";
@@ -52,7 +52,13 @@ export const imapFormError = (values: ImapFormValues) => {
   return undefined;
 };
 
-export function ImapConnectForm({ available = true }: { available?: boolean }) {
+export function ImapConnectForm({
+  available = true,
+  onConnected,
+}: {
+  available?: boolean;
+  onConnected?: () => void;
+}) {
   const [values, setValues] = useState(initialImapForm);
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
@@ -64,23 +70,26 @@ export function ImapConnectForm({ available = true }: { available?: boolean }) {
     setError(invalid);
     if (invalid) return;
     setPending(true);
-    const result = await signIn("imap", {
-      redirect: false,
-      callbackUrl: "/",
-      host: values.host.trim(),
-      port: values.port,
-      email: values.email.trim(),
-      password: values.password,
-    });
-    setPending(false);
-    if (result?.error)
-      // NextAuth forwards the message the mail server actually caused.
+    try {
+      await axios.post("/api/mail-connections", {
+        host: values.host.trim(),
+        port: values.port,
+        email: values.email.trim(),
+        password: values.password,
+      });
+      setValues(initialImapForm());
+      setError(undefined);
+      onConnected?.();
+    } catch (caught) {
       setError(
-        result.error === "CredentialsSignin"
-          ? "메일 서버에 로그인하지 못했습니다. IMAP 사용 설정과 앱 비밀번호를 확인해주세요."
-          : result.error,
+        axios.isAxiosError(caught) &&
+          typeof caught.response?.data?.error === "string"
+          ? caught.response.data.error
+          : "메일 서버에 로그인하지 못했습니다. 주소와 앱 비밀번호를 확인해주세요.",
       );
-    else window.location.assign("/");
+    } finally {
+      setPending(false);
+    }
   };
 
   if (!available)
@@ -88,8 +97,8 @@ export function ImapConnectForm({ available = true }: { available?: boolean }) {
       <section className="imap-form">
         <h3>다른 메일 계정 연결</h3>
         <small>
-          네이버·다음·카카오 등 IMAP 메일 연결은 아직 준비 중입니다. 그동안
-          Google 계정으로 이용해주세요.
+          이 환경에서는 IMAP 연결을 사용할 수 없습니다. Google 또는 Microsoft
+          메일을 연결해주세요.
         </small>
       </section>
     );
@@ -176,8 +185,7 @@ export function ImapConnectForm({ available = true }: { available?: boolean }) {
       </label>
       {preset && <small>{preset.guide}</small>}
       <small>
-        입력한 비밀번호는 암호화된 세션 쿠키에만 보관하며 별도로 저장하지
-        않습니다.
+        입력한 앱 비밀번호는 서버에 암호화해 저장하며 메일 연결에만 사용합니다.
       </small>
       {error && (
         <small className="imap-form-error" role="alert">

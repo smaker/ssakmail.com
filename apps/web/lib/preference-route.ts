@@ -1,28 +1,15 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { authorizeMailToken, type MailToken } from "@ssakmail/auth";
 import { createMailClient, type MailClient, MailError } from "@ssakmail/mail";
 import type { PreferenceEnv } from "@ssakmail/preference/cloudflare";
 import { type NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
-import { connectionErrorMessage } from "./mail-route";
+import { accountSession, mailSession } from "./mail-session";
 
 async function context(request: NextRequest) {
-  const token = (await getToken({
-    req: request,
-    secret: process.env.AUTH_SECRET,
-  })) as MailToken | null;
-  if (!token?.email)
-    return {
-      response: NextResponse.json(
-        { error: "로그인이 필요합니다." },
-        { status: 401 },
-      ),
-    };
-  const { env } = await getCloudflareContext({ async: true });
+  const session = await accountSession(request);
+  if (!("token" in session)) return session;
   return {
-    token,
-    email: token.identityKey ?? token.email,
-    env: env as unknown as PreferenceEnv,
+    ...session,
+    email: session.accountKey,
+    env: session.env as unknown as PreferenceEnv,
   };
 }
 
@@ -40,7 +27,7 @@ export async function preferenceRoute<T>(
 ) {
   try {
     const session = await context(request);
-    if (session.response) return session.response;
+    if ("response" in session) return session.response;
     return NextResponse.json(await handler(session.env, session.email));
   } catch (error) {
     return errorResponse(error);
@@ -49,22 +36,22 @@ export async function preferenceRoute<T>(
 
 export async function preferenceMailRoute<T>(
   request: NextRequest,
-  handler: (env: PreferenceEnv, email: string, mail: MailClient) => Promise<T>,
+  handler: (
+    env: PreferenceEnv,
+    email: string,
+    mail: MailClient,
+    connectionId: string,
+  ) => Promise<T>,
 ) {
   try {
-    const session = await context(request);
-    if (session.response) return session.response;
-    const authorized = authorizeMailToken(session.token);
-    if (authorized.status !== 200)
-      return NextResponse.json(
-        { error: connectionErrorMessage(authorized.status) },
-        { status: authorized.status },
-      );
+    const session = await mailSession(request);
+    if ("response" in session) return session.response;
     return NextResponse.json(
       await handler(
-        session.env,
-        session.email,
-        await createMailClient(authorized.credentials),
+        session.env as unknown as PreferenceEnv,
+        session.accountKey,
+        await createMailClient(session.credentials),
+        session.connection.id,
       ),
     );
   } catch (error) {

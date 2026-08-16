@@ -55,6 +55,8 @@ export type PreferenceEnv = {
 
 export type PreferenceMessage = {
   id: string;
+  /** Provider message IDs are only unique inside one mail connection. */
+  preferenceKey?: string;
   from: string;
   subject: string;
   snippet: string;
@@ -63,6 +65,10 @@ export type PreferenceMessage = {
 };
 
 const hash = async (value: string) => userNamespace(value);
+const preferenceMessageKey = (message: {
+  id: string;
+  preferenceKey?: string;
+}) => message.preferenceKey ?? message.id;
 const senderAddress = (from: string) =>
   from.match(/<([^>]+)>/)?.[1]?.toLowerCase() ?? from.trim().toLowerCase();
 const senderDomain = (from: string) => senderAddress(from).split("@")[1] ?? "";
@@ -284,7 +290,7 @@ export async function recommendMessageForConsentedUser(
     recommendation = fallback;
   }
 
-  const messageKey = await hash(message.id);
+  const messageKey = await hash(preferenceMessageKey(message));
   const eventId = await hash(`${userKey}:${messageKey}:recommendation`);
   await env.PREFERENCES_DB.prepare(
     "INSERT INTO recommendation_events (id, user_key, message_key, category, preference_score, confidence, source, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) ON CONFLICT(id) DO UPDATE SET category = excluded.category, preference_score = excluded.preference_score, confidence = excluded.confidence, source = excluded.source, created_at = excluded.created_at",
@@ -317,7 +323,7 @@ export async function recordFeedback(
   const consent = await getConsent(env, email);
   if (!consent.consented) throw new Error("AI consent required");
   const userKey = await userNamespace(email);
-  const messageKey = await hash(message.id);
+  const messageKey = await hash(preferenceMessageKey(message));
   const vectorId = await hash(`${userKey}:${messageKey}`);
   const weight = feedbackWeight(action);
   const vector = await embedding(env, maskedProfile(message));
@@ -348,11 +354,9 @@ export async function recordFeedback(
   return { recorded: true };
 }
 
-export async function filterUnwantedMessages<T extends { id: string }>(
-  env: PreferenceEnv,
-  email: string,
-  messages: readonly T[],
-) {
+export async function filterUnwantedMessages<
+  T extends { id: string; preferenceKey?: string },
+>(env: PreferenceEnv, email: string, messages: readonly T[]) {
   const rows = await env.PREFERENCES_DB.prepare(
     "SELECT message_key FROM preference_feedback WHERE user_key = ?1 AND action = 'unwanted'",
   )
@@ -360,18 +364,19 @@ export async function filterUnwantedMessages<T extends { id: string }>(
     .all<{ message_key: string }>();
   const unwanted = new Set(rows.results.map(({ message_key }) => message_key));
   const messageKeys = await Promise.all(
-    messages.map(async (message) => [message, await hash(message.id)] as const),
+    messages.map(
+      async (message) =>
+        [message, await hash(preferenceMessageKey(message))] as const,
+    ),
   );
   return messageKeys
     .filter(([, messageKey]) => !unwanted.has(messageKey))
     .map(([message]) => message);
 }
 
-export async function getAutoOrganizeExcludedIds<T extends { id: string }>(
-  env: PreferenceEnv,
-  email: string,
-  messages: readonly T[],
-) {
+export async function getAutoOrganizeExcludedIds<
+  T extends { id: string; preferenceKey?: string },
+>(env: PreferenceEnv, email: string, messages: readonly T[]) {
   const rows = await env.PREFERENCES_DB.prepare(
     "SELECT message_key FROM auto_organize_exclusions WHERE user_key = ?1",
   )
@@ -379,7 +384,10 @@ export async function getAutoOrganizeExcludedIds<T extends { id: string }>(
     .all<{ message_key: string }>();
   const excluded = new Set(rows.results.map(({ message_key }) => message_key));
   const ids = await Promise.all(
-    messages.map(async ({ id }) => [id, await hash(id)] as const),
+    messages.map(
+      async (message) =>
+        [message.id, await hash(preferenceMessageKey(message))] as const,
+    ),
   );
   return new Set(
     ids.filter(([, messageKey]) => excluded.has(messageKey)).map(([id]) => id),
@@ -390,13 +398,14 @@ export async function excludeMessageFromAutoOrganize(
   env: PreferenceEnv,
   email: string,
   messageId: string,
+  preferenceKey = messageId,
 ) {
   await env.PREFERENCES_DB.prepare(
     "INSERT INTO auto_organize_exclusions (user_key, message_key, created_at) VALUES (?1, ?2, ?3) ON CONFLICT(user_key, message_key) DO UPDATE SET created_at = excluded.created_at",
   )
     .bind(
       await userNamespace(email),
-      await hash(messageId),
+      await hash(preferenceKey),
       new Date().toISOString(),
     )
     .run();

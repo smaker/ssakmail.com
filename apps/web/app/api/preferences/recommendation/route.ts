@@ -11,11 +11,10 @@ export async function POST(request: NextRequest) {
       { error: "메일 ID가 필요합니다." },
       { status: 400 },
     );
-  return preferenceMailRoute(request, async (env, email, mail) =>
-    recommendMessage(
-      env,
-      email,
-      await mail.getMessage(body.messageId as string),
-    ),
+  return preferenceMailRoute(request, async (env, email, mail, connectionId) =>
+    recommendMessage(env, email, {
+      ...(await mail.getMessage(body.messageId as string)),
+      preferenceKey: `${connectionId}:${body.messageId as string}`,
+    }),
   );
 }

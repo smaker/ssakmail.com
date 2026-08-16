@@ -60,6 +60,12 @@ describe("infinite mailbox pages", () => {
     expect(mailboxPageUrl("inbox", "next/page")).toBe(
       "/api/gmail/messages?cursor=next%2Fpage",
     );
+    expect(mailboxPageUrl("inbox", undefined, "connection-1")).toBe(
+      "/api/gmail/messages?connection=connection-1",
+    );
+    expect(mailboxPageUrl("inbox", "next/page", "connection-1")).toBe(
+      "/api/gmail/messages?cursor=next%2Fpage&connection=connection-1",
+    );
   });
 
   it("flattens every loaded page in order", () => {

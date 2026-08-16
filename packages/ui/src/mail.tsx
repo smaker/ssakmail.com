@@ -8,6 +8,8 @@ import { VStack } from "@astryxdesign/core/Layout";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { Slider } from "@astryxdesign/core/Slider";
 import { Switch } from "@astryxdesign/core/Switch";
+import { Icon as BrandIcon } from "@iconify/react";
+import { icons as brandIcons } from "@iconify-json/logos";
 import type {
   CleanupCategory,
   MailProvider,
@@ -59,23 +61,50 @@ type AutoOrganizeSettings = Pick<
   Consent,
   "autoOrganizeEnabled" | "autoOrganizeConfidenceThreshold"
 >;
+type MailConnectionSummary = {
+  id: string;
+  provider: MailProvider;
+  mailboxAddress: string;
+  displayName: string;
+  connectedAt: string;
+};
+type MailConnectionsResponse = {
+  connections: MailConnectionSummary[];
+  activeId?: string;
+};
 export type MailProviderAvailability = Record<MailProvider, boolean>;
 type MailFilter = "all" | "cleanup" | CleanupCategory;
 type Mailbox = "inbox" | "auto-organized";
+const GOOGLE_BRAND_ICON = brandIcons.icons["google-icon"];
+const MICROSOFT_BRAND_ICON = brandIcons.icons["microsoft-icon"];
 
 export const mailboxEndpoint = (mailbox: Mailbox) =>
   mailbox === "inbox" ? "/api/gmail/messages" : "/api/gmail/auto-organized";
 
-export const mailboxQueryKey = (mailbox: Mailbox) => [
-  "gmail",
-  "messages",
-  mailbox,
-];
+export const mailboxQueryKey = (mailbox: Mailbox, connectionId?: string) =>
+  connectionId
+    ? ["gmail", "messages", mailbox, connectionId]
+    : ["gmail", "messages", mailbox];
 
-export const mailboxPageUrl = (mailbox: Mailbox, cursor?: string) =>
-  cursor
-    ? `${mailboxEndpoint(mailbox)}?cursor=${encodeURIComponent(cursor)}`
+export const mailboxPageUrl = (
+  mailbox: Mailbox,
+  cursor?: string,
+  connectionId?: string,
+) => {
+  const params = new URLSearchParams();
+  if (cursor) params.set("cursor", cursor);
+  if (connectionId) params.set("connection", connectionId);
+  const query = params.toString();
+  return query
+    ? `${mailboxEndpoint(mailbox)}?${query}`
     : mailboxEndpoint(mailbox);
+};
+
+const connectionUrl = (path: string, connectionId?: string) => {
+  if (!connectionId) return path;
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}connection=${encodeURIComponent(connectionId)}`;
+};
 
 export const flattenMessagePages = (data?: InfiniteData<MessagePage>) =>
   data?.pages.flatMap((page) => page.messages) ?? [];
@@ -182,12 +211,18 @@ export const mailAuthorizationParams = (
         scope: `${MICROSOFT_IDENTITY_SCOPE} ${GRAPH_MAIL_SCOPE}`,
       };
 
-const connectMailbox = (provider: MailProvider) =>
-  signIn(
+const connectMailbox = async (
+  provider: MailProvider,
+  authenticated: boolean,
+) => {
+  if (authenticated && provider !== "imap")
+    await axios.post("/api/mail-connections/intent", { provider });
+  return signIn(
     AUTH_PROVIDER_ID[provider],
     { callbackUrl: "/" },
     mailAuthorizationParams(provider),
   );
+};
 
 const messageDate = (value: string) =>
   value
@@ -219,6 +254,10 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
     y: number;
   } | null>(null);
   const queryClient = useQueryClient();
+  useEffect(() => {
+    if (status === "authenticated")
+      void axios.delete("/api/mail-connections/intent").catch(() => undefined);
+  }, [status]);
   const mailAccount = (
     session as
       | (typeof session & {
@@ -230,8 +269,21 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
         })
       | null
   )?.gmail;
-  const provider = mailAccount?.provider ?? "google";
-  const mailboxConnected = mailAccount?.connected && !mailAccount.error;
+  const mailConnections = useQuery({
+    queryKey: ["mail", "connections"],
+    queryFn: async () =>
+      (await axios.get<MailConnectionsResponse>("/api/mail-connections")).data,
+    enabled: status === "authenticated",
+  });
+  const connections = mailConnections.data?.connections ?? [];
+  const activeConnectionId =
+    mailConnections.data?.activeId ?? connections[0]?.id;
+  const activeConnection = connections.find(
+    (connection) => connection.id === activeConnectionId,
+  );
+  const provider =
+    activeConnection?.provider ?? mailAccount?.provider ?? "google";
+  const mailboxConnected = Boolean(activeConnection) && !mailAccount?.error;
   const state = mailViewState(status, mailboxConnected ?? false);
   const mailProviders = useQuery({
     queryKey: ["mail", "providers"],
@@ -244,9 +296,13 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   const imapAvailable = mailProviders.data?.imap !== false;
 
   const messages = useInfiniteQuery({
-    queryKey: mailboxQueryKey(mailbox),
+    queryKey: mailboxQueryKey(mailbox, activeConnectionId),
     queryFn: async ({ pageParam }) =>
-      (await axios.get<MessagePage>(mailboxPageUrl(mailbox, pageParam))).data,
+      (
+        await axios.get<MessagePage>(
+          mailboxPageUrl(mailbox, pageParam, activeConnectionId),
+        )
+      ).data,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page: MessagePage) => page.nextCursor,
     enabled: state === "mailbox",
@@ -277,25 +333,33 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
     setConfidenceThreshold(consent.data.autoOrganizeConfidenceThreshold);
   }, [consent.data]);
   const detail = useQuery({
-    queryKey: ["gmail", "messages", selectedId],
+    queryKey: ["gmail", "messages", activeConnectionId, selectedId],
     queryFn: async () =>
       (
         await axios.get<MessageDetail>(
-          `/api/gmail/messages/${encodeURIComponent(selectedId ?? "")}`,
+          connectionUrl(
+            `/api/gmail/messages/${encodeURIComponent(selectedId ?? "")}`,
+            activeConnectionId,
+          ),
         )
       ).data,
-    enabled: Boolean(selectedId),
+    enabled: Boolean(selectedId && activeConnectionId),
   });
   const recommendation = useQuery({
-    queryKey: ["preferences", "recommendation", selectedId],
+    queryKey: ["preferences", "recommendation", activeConnectionId, selectedId],
     queryFn: async () =>
       (
         await axios.post<RecommendationResponse>(
-          "/api/preferences/recommendation",
+          connectionUrl("/api/preferences/recommendation", activeConnectionId),
           { messageId: selectedId },
         )
       ).data,
-    enabled: Boolean(selectedId && detail.data && consent.data?.consented),
+    enabled: Boolean(
+      activeConnectionId &&
+        selectedId &&
+        detail.data &&
+        consent.data?.consented,
+    ),
   });
   const enableAi = useMutation({
     mutationFn: () =>
@@ -319,7 +383,9 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
             autoOrganizeConfidenceThreshold: data.confidenceThreshold,
           },
       );
-      queryClient.invalidateQueries({ queryKey: mailboxQueryKey("inbox") });
+      queryClient.invalidateQueries({
+        queryKey: mailboxQueryKey("inbox", activeConnectionId),
+      });
     },
   });
   const deleteLearning = useMutation({
@@ -344,13 +410,18 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       })
     : false;
   const sendFeedback = (id: string, action: FeedbackAction) =>
-    axios.post("/api/preferences/feedback", { messageId: id, action });
+    axios.post(connectionUrl("/api/preferences/feedback", activeConnectionId), {
+      messageId: id,
+      action,
+    });
   const removeMessage = (id: string, sourceMailbox = mailbox) => {
     queryClient.setQueryData<InfiniteData<MessagePage>>(
-      mailboxQueryKey(sourceMailbox),
+      mailboxQueryKey(sourceMailbox, activeConnectionId),
       (current) => removeMessageFromPages(current, id),
     );
-    queryClient.removeQueries({ queryKey: ["gmail", "messages", id] });
+    queryClient.removeQueries({
+      queryKey: ["gmail", "messages", activeConnectionId, id],
+    });
     setSelectedId((current) => selectedMessageAfterRemoval(current, id));
   };
   const feedback = useMutation({
@@ -368,7 +439,12 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
         return;
       }
       queryClient.invalidateQueries({
-        queryKey: ["preferences", "recommendation", selectedId],
+        queryKey: [
+          "preferences",
+          "recommendation",
+          activeConnectionId,
+          selectedId,
+        ],
       });
     },
   });
@@ -376,7 +452,12 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
     mutationFn: async ({ id }: { id: string; sourceMailbox: Mailbox }) => {
       if (consent.data?.consented)
         await sendFeedback(id, "trashed").catch(() => undefined);
-      return axios.post(`/api/gmail/messages/${encodeURIComponent(id)}/trash`);
+      return axios.post(
+        connectionUrl(
+          `/api/gmail/messages/${encodeURIComponent(id)}/trash`,
+          activeConnectionId,
+        ),
+      );
     },
     onSuccess: (_, { id, sourceMailbox }) => {
       deleteDialog.current?.close();
@@ -399,10 +480,17 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
   };
   const restore = useMutation({
     mutationFn: (id: string) =>
-      axios.post(`/api/gmail/auto-organized/${encodeURIComponent(id)}/restore`),
+      axios.post(
+        connectionUrl(
+          `/api/gmail/auto-organized/${encodeURIComponent(id)}/restore`,
+          activeConnectionId,
+        ),
+      ),
     onSuccess: (_, id) => {
       removeMessage(id, "auto-organized");
-      queryClient.invalidateQueries({ queryKey: mailboxQueryKey("inbox") });
+      queryClient.invalidateQueries({
+        queryKey: mailboxQueryKey("inbox", activeConnectionId),
+      });
     },
   });
   const permanentlyDelete = useMutation({
@@ -410,12 +498,36 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
       if (consent.data?.consented)
         await sendFeedback(id, "deleted").catch(() => undefined);
       return axios.delete(
-        `/api/gmail/messages/${encodeURIComponent(id)}/delete`,
+        connectionUrl(
+          `/api/gmail/messages/${encodeURIComponent(id)}/delete`,
+          activeConnectionId,
+        ),
       );
     },
     onSuccess: (_, { id, sourceMailbox }) => {
       deleteDialog.current?.close();
       removeMessage(id, sourceMailbox);
+    },
+  });
+  const selectConnection = useMutation({
+    mutationFn: (id: string) =>
+      axios.post(`/api/mail-connections/${encodeURIComponent(id)}/select`),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData<MailConnectionsResponse>(
+        ["mail", "connections"],
+        (current) => (current ? { ...current, activeId: id } : current),
+      );
+      setSelectedId(undefined);
+      queryClient.invalidateQueries({ queryKey: ["gmail", "messages"] });
+    },
+  });
+  const disconnectConnection = useMutation({
+    mutationFn: (id: string) =>
+      axios.delete(`/api/mail-connections/${encodeURIComponent(id)}`),
+    onSuccess: () => {
+      setSelectedId(undefined);
+      queryClient.invalidateQueries({ queryKey: ["mail", "connections"] });
+      queryClient.invalidateQueries({ queryKey: ["gmail", "messages"] });
     },
   });
 
@@ -505,6 +617,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
           <Button
             label="Google로 로그인"
             variant="primary"
+            icon={<BrandIcon icon={GOOGLE_BRAND_ICON} aria-hidden="true" />}
             onClick={() =>
               signIn(AUTH_PROVIDER_ID.google, { callbackUrl: "/" })
             }
@@ -512,6 +625,7 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
           <Button
             label="Microsoft로 로그인"
             variant="secondary"
+            icon={<BrandIcon icon={MICROSOFT_BRAND_ICON} aria-hidden="true" />}
             isDisabled={!microsoftAvailable}
             onClick={() =>
               signIn(AUTH_PROVIDER_ID.microsoft, { callbackUrl: "/" })
@@ -524,24 +638,62 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
             아래의 다른 메일 계정으로 이용해주세요.
           </small>
         )}
-        <ImapConnectForm available={imapAvailable} />
       </section>
     );
   }
   if (state === "needs-gmail") {
+    if (mailConnections.isPending)
+      return (
+        <section className="mail-state" role="status" aria-busy="true">
+          <h2>메일 연결 확인 중</h2>
+          <p>연결된 메일 계정을 확인하고 있습니다.</p>
+        </section>
+      );
+    if (mailConnections.isError)
+      return (
+        <section className="mail-state">
+          <h2>메일 연결 목록을 불러오지 못했습니다.</h2>
+          <p>연결 상태를 확인한 뒤 다시 시도해주세요.</p>
+          <div className="provider-actions">
+            <Button
+              label="다시 시도"
+              variant="primary"
+              onClick={() => void mailConnections.refetch()}
+            />
+            <Button
+              label="로그아웃"
+              variant="secondary"
+              onClick={() => signOut()}
+            />
+          </div>
+        </section>
+      );
     return (
       <section className="mail-state">
-        <h2>{providerLabel(provider)} 연결</h2>
-        <p>
-          메일 읽기, 휴지통 이동, 영구 삭제를 위해 {providerLabel(provider)}{" "}
-          권한이 필요합니다.
-        </p>
+        <h2>메일 계정 연결</h2>
+        <p>로그인은 유지한 채 사용할 메일 계정을 하나 이상 연결하세요.</p>
         <div className="provider-actions">
           <Button
-            label={`${providerLabel(provider)} 연결`}
+            label="Google 연결"
             variant="primary"
-            onClick={() => connectMailbox(provider)}
+            icon={<BrandIcon icon={GOOGLE_BRAND_ICON} aria-hidden="true" />}
+            onClick={() => connectMailbox("google", true)}
           />
+          <Button
+            label="Microsoft 연결"
+            variant="secondary"
+            icon={<BrandIcon icon={MICROSOFT_BRAND_ICON} aria-hidden="true" />}
+            isDisabled={!microsoftAvailable}
+            onClick={() => connectMailbox("microsoft", true)}
+          />
+        </div>
+        <ImapConnectForm
+          available={imapAvailable}
+          onConnected={() =>
+            queryClient.invalidateQueries({ queryKey: ["mail", "connections"] })
+          }
+        />
+        <div className="provider-actions">
           <Button
             label="로그아웃"
             variant="secondary"
@@ -578,6 +730,68 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
           />
         </div>
       </header>
+      <details
+        className="mail-connections"
+        open={connections.length === 0 ? true : undefined}
+      >
+        <summary>연결된 메일 계정 {connections.length}개</summary>
+        <p>
+          로그인 계정과 메일 연결은 분리되어 있습니다. 사용할 계정을 선택하세요.
+        </p>
+        {mailConnections.isPending && (
+          <p role="status">연결 목록을 불러오는 중</p>
+        )}
+        {mailConnections.isError && (
+          <p role="alert">메일 연결 목록을 불러오지 못했습니다.</p>
+        )}
+        {connections.length > 0 && (
+          <ul className="mail-connection-list">
+            {connections.map((connection) => (
+              <li key={connection.id}>
+                <Button
+                  label={`${connection.displayName} · ${providerLabel(connection.provider)}`}
+                  variant="secondary"
+                  aria-pressed={connection.id === activeConnectionId}
+                  isDisabled={selectConnection.isPending}
+                  onClick={() => selectConnection.mutate(connection.id)}
+                />
+                <small>{connection.mailboxAddress}</small>
+                <Button
+                  label="연결 해제"
+                  variant="ghost"
+                  isDisabled={disconnectConnection.isPending}
+                  onClick={() =>
+                    window.confirm(
+                      `${connection.mailboxAddress} 연결을 해제할까요?`,
+                    ) && disconnectConnection.mutate(connection.id)
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="provider-actions">
+          <Button
+            label="Google 연결 추가"
+            variant="primary"
+            icon={<BrandIcon icon={GOOGLE_BRAND_ICON} aria-hidden="true" />}
+            onClick={() => connectMailbox("google", true)}
+          />
+          <Button
+            label="Microsoft 연결 추가"
+            variant="secondary"
+            icon={<BrandIcon icon={MICROSOFT_BRAND_ICON} aria-hidden="true" />}
+            isDisabled={!microsoftAvailable}
+            onClick={() => connectMailbox("microsoft", true)}
+          />
+        </div>
+        <ImapConnectForm
+          available={imapAvailable}
+          onConnected={() =>
+            queryClient.invalidateQueries({ queryKey: ["mail", "connections"] })
+          }
+        />
+      </details>
       <section
         id="preference-settings"
         className="preference-settings"
@@ -780,11 +994,15 @@ export function MailApp({ variant }: { variant: "web" | "mobile" }) {
           {messages.isError && (
             <div role="alert">
               <p>메일을 불러오지 못했습니다.</p>
-              <Button
-                label={`${providerLabel(provider)} 다시 연결`}
-                variant="primary"
-                onClick={() => connectMailbox(provider)}
-              />
+              {provider === "imap" ? (
+                <p>연결된 메일 계정에서 IMAP 정보를 다시 확인해주세요.</p>
+              ) : (
+                <Button
+                  label={`${providerLabel(provider)} 다시 연결`}
+                  variant="primary"
+                  onClick={() => connectMailbox(provider, true)}
+                />
+              )}
             </div>
           )}
           {messages.data && loadedMessages.length === 0 && (

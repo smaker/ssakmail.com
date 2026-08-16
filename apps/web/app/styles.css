@@ -219,6 +219,44 @@ h1 {
   gap: 8px;
   align-items: center;
 }
+.mail-connections {
+  padding: var(--spacing-4) var(--spacing-6);
+  border-bottom: var(--ssak-line-width) solid var(--ssak-line);
+  background: var(--ssak-surface-muted);
+}
+.mail-connections > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.mail-connections > p {
+  margin: var(--spacing-2) 0 0;
+  color: var(--ssak-ink-muted);
+}
+.mail-connection-list {
+  display: grid;
+  gap: var(--spacing-2);
+  margin: var(--spacing-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.mail-connection-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--spacing-1) var(--spacing-3);
+  align-items: center;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: var(--ssak-line-width) solid var(--ssak-line);
+  border-radius: var(--ssak-radius-sm);
+  background: var(--ssak-surface);
+}
+.mail-connection-list li > small {
+  grid-column: 1;
+  color: var(--ssak-ink-muted);
+}
+.mail-connection-list li > :last-child {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
 .preference-settings {
   display: flex;
   gap: 18px;

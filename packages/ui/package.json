@@ -14,6 +14,8 @@
   "dependencies": {
     "@astryxdesign/core": "^0.2.0",
     "@astryxdesign/theme-neutral": "^0.2.0",
+    "@iconify-json/logos": "1.2.13",
+    "@iconify/react": "6.0.2",
     "@ssakmail/auth": "workspace:*",
     "@ssakmail/data-access": "workspace:*",
     "@ssakmail/gmail": "workspace:*",

@@ -3,7 +3,6 @@ import {
   type ImapCredentials,
   isValidImapHost,
   isValidImapPort,
-  verifyImapCredentials,
 } from "@ssakmail/mail";
 import axios from "axios";
 import type { NextAuthOptions } from "next-auth";
@@ -11,12 +10,19 @@ import type { JWT } from "next-auth/jwt";
 import AzureADProvider from "next-auth/providers/azure-ad";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import type {
+  MailConnectionCredentials,
+  MailConnectionStore,
+} from "./mail-connections";
 import {
+  normalizeEmail,
   PASSWORD_PROVIDER_ID,
   type PasswordAuthStore,
   validatePasswordCredentials,
   verifyPassword,
 } from "./password";
+
+export * from "./mail-connections";
 
 export type {
   PasswordAuthStore,
@@ -41,6 +47,11 @@ export {
 
 export type OAuthMailProvider = "google" | "microsoft";
 export type MailTokenProvider = OAuthMailProvider | "imap";
+export type ConnectionIdentity = {
+  accountKey: string;
+  email?: string;
+  name?: string;
+};
 export const IMAP_PROVIDER_ID = "imap";
 
 export const GMAIL_SCOPE = "https://mail.google.com/";
@@ -59,17 +70,14 @@ export const authorizationScope = (provider: OAuthMailProvider) =>
     : `${MICROSOFT_IDENTITY_SCOPE} ${GRAPH_MAIL_SCOPE}`;
 
 export type MailToken = JWT & {
-  /** Stable D1 identity for password accounts; OAuth keeps the legacy email key. */
+  /** Stable account identity; active mail credentials are stored outside JWT. */
   identityKey?: string;
   provider?: MailTokenProvider;
   accessToken?: string;
   refreshToken?: string;
   expiresAt?: number;
   scope?: string;
-  /**
-   * IMAP has no token to refresh, so the app password lives in the NextAuth
-   * JWT, which is encrypted with AUTH_SECRET and only ever read server side.
-   */
+  /** Legacy IMAP field kept only for callers that still decode old tokens. */
   imap?: ImapCredentials;
   error?: "RefreshAccessTokenError";
 };
@@ -222,7 +230,13 @@ export const readImapCredentials = (
 };
 
 export function createAuthOptions(
-  dependencies: { passwordStore?: PasswordAuthStore } = {},
+  dependencies: {
+    passwordStore?: PasswordAuthStore;
+    mailConnectionStore?: MailConnectionStore;
+    resolveConnectionIdentity?: (
+      provider: OAuthMailProvider,
+    ) => Promise<ConnectionIdentity | undefined>;
+  } = {},
 ): NextAuthOptions {
   return {
     providers: [
@@ -273,22 +287,6 @@ export function createAuthOptions(
           return { id: user.id, email: user.email, name: user.name };
         },
       }),
-      CredentialsProvider({
-        id: IMAP_PROVIDER_ID,
-        name: "IMAP 메일 계정",
-        credentials: {
-          host: { label: "IMAP 서버", type: "text" },
-          port: { label: "포트", type: "text" },
-          email: { label: "메일 주소", type: "text" },
-          password: { label: "앱 비밀번호", type: "password" },
-        },
-        async authorize(credentials) {
-          const imap = readImapCredentials(credentials);
-          if (!imap) return null;
-          await verifyImapCredentials(imap);
-          return { id: imap.user, email: imap.user, name: imap.user, imap };
-        },
-      }),
     ],
     secret: process.env.AUTH_SECRET,
     session: { strategy: "jwt" },
@@ -301,30 +299,95 @@ export function createAuthOptions(
             identityKey:
               (user as { id?: string } | undefined)?.id ??
               mailToken.identityKey,
+            provider: undefined,
+            accessToken: undefined,
+            refreshToken: undefined,
+            expiresAt: undefined,
+            scope: undefined,
+            imap: undefined,
             error: undefined,
           };
-        if (account?.provider === IMAP_PROVIDER_ID) {
-          const imap = (user as { imap?: ImapCredentials } | undefined)?.imap;
-          return {
-            ...mailToken,
-            provider: "imap" as const,
-            imap,
-            error: undefined,
-          };
-        }
         if (account) {
+          const provider =
+            account.provider === "azure-ad"
+              ? ("microsoft" as const)
+              : ("google" as const);
+          const connectionIdentity =
+            await dependencies.resolveConnectionIdentity?.(provider);
+          const accessToken = account.access_token;
+          const scope = account.scope;
+          const email =
+            (user as { email?: string } | undefined)?.email ??
+            mailToken.email ??
+            account.providerAccountId;
+          const identityKey =
+            connectionIdentity?.accountKey ??
+            mailToken.identityKey ??
+            (email.includes("@")
+              ? normalizeEmail(email)
+              : `oauth:${provider}:${account.providerAccountId}`);
+          if (
+            connectionIdentity &&
+            dependencies.mailConnectionStore &&
+            accessToken &&
+            hasMailScope(provider, scope)
+          ) {
+            const credentials: MailConnectionCredentials = {
+              provider,
+              accessToken,
+              refreshToken: account.refresh_token ?? mailToken.refreshToken,
+              expiresAt: account.expires_at
+                ? account.expires_at * 1000
+                : undefined,
+              scope: scope ?? "",
+            };
+            await dependencies.mailConnectionStore.save({
+              accountKey: identityKey,
+              provider,
+              providerAccountId: account.providerAccountId,
+              mailboxAddress: email.trim().toLowerCase(),
+              displayName:
+                (user as { name?: string } | undefined)?.name?.trim() || email,
+              credentials,
+            });
+            return {
+              ...mailToken,
+              identityKey,
+              email: connectionIdentity?.email ?? mailToken.email,
+              name: connectionIdentity?.name ?? mailToken.name,
+              provider: undefined,
+              accessToken: undefined,
+              refreshToken: undefined,
+              expiresAt: undefined,
+              scope: undefined,
+              imap: undefined,
+              error: undefined,
+            };
+          }
+          if (dependencies.mailConnectionStore)
+            return {
+              ...mailToken,
+              identityKey,
+              email: connectionIdentity?.email ?? mailToken.email,
+              name: connectionIdentity?.name ?? mailToken.name,
+              provider: undefined,
+              accessToken: undefined,
+              refreshToken: undefined,
+              expiresAt: undefined,
+              scope: undefined,
+              imap: undefined,
+              error: undefined,
+            };
           return {
             ...mailToken,
-            provider:
-              account.provider === "azure-ad"
-                ? ("microsoft" as const)
-                : ("google" as const),
-            accessToken: account.access_token,
+            identityKey,
+            provider,
+            accessToken,
             refreshToken: account.refresh_token ?? mailToken.refreshToken,
             expiresAt: account.expires_at
               ? account.expires_at * 1000
               : undefined,
-            scope: account.scope,
+            scope,
             error: undefined,
           };
         }
@@ -346,17 +409,32 @@ export function createAuthOptions(
             host?: string;
             error?: "RefreshAccessTokenError";
           };
+          mailConnections?: Array<{
+            id: string;
+            provider: MailTokenProvider;
+            mailboxAddress: string;
+            displayName: string;
+            connectedAt: string;
+          }>;
         };
+        const connections = dependencies.mailConnectionStore
+          ? await dependencies.mailConnectionStore.list(
+              mailToken.identityKey ?? mailToken.email ?? "",
+            )
+          : [];
         mailSession.gmail = {
-          connected:
-            provider === "imap"
+          connected: dependencies.mailConnectionStore
+            ? connections.length > 0
+            : provider === "imap"
               ? Boolean(mailToken.imap)
               : hasMailScope(provider, mailToken.scope),
-          provider,
+          provider: connections[0]?.provider ?? provider,
           // The password never leaves the server; the host is safe to show.
           host: mailToken.imap?.host,
           error: mailToken.error,
         };
+        if (dependencies.mailConnectionStore)
+          mailSession.mailConnections = connections;
         return mailSession;
       },
     },

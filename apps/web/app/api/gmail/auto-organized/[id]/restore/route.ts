@@ -8,9 +8,17 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  return preferenceMailRoute(request, async (env, email, mail) => {
-    await excludeMessageFromAutoOrganize(env, email, id);
-    if (!(await mail.restoreFromAutoOrganized(id)))
-      throw new MailError(404, "자동정리함에서 메일을 복원하지 못했습니다.");
-  });
+  return preferenceMailRoute(
+    request,
+    async (env, email, mail, connectionId) => {
+      await excludeMessageFromAutoOrganize(
+        env,
+        email,
+        id,
+        `${connectionId}:${id}`,
+      );
+      if (!(await mail.restoreFromAutoOrganized(id)))
+        throw new MailError(404, "자동정리함에서 메일을 복원하지 못했습니다.");
+    },
+  );
 }

@@ -271,6 +271,12 @@ importers:
       '@astryxdesign/theme-neutral':
         specifier: ^0.2.0
         version: 0.2.0(@astryxdesign/core@0.2.0(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
+      '@iconify-json/logos':
+        specifier: 1.2.13
+        version: 1.2.13
+      '@iconify/react':
+        specifier: 6.0.2
+        version: 6.0.2(react@19.2.8)
       '@ssakmail/auth':
         specifier: workspace:*
         version: link:../auth
@@ -1196,6 +1202,17 @@ packages:
 
   '@formatjs/icu-skeleton-parser@2.1.11':
     resolution: {integrity: sha512-j8cUmOJzVgkHuS0QiQ6ga76UIoLOFSAMWhs7aZJztH3aAdCOAE6vpC8KVvFB4cU10ON0y2/5oOVmPJ43s2lTwA==}
+
+  '@iconify-json/logos@1.2.13':
+    resolution: {integrity: sha512-Up54ZnIuiuBgGAsuzhR1nvKqwq8VE6YM3XLwVB6IgY+7NAasz6WKu9Ay5hGfAkfuOKowodfwDC8ozReEBYrWRg==}
+
+  '@iconify/react@6.0.2':
+    resolution: {integrity: sha512-SMmC2sactfpJD427WJEDN6PMyznTFMhByK9yLW0gOTtnjzzbsi/Ke/XqsumsavFPwNiXs8jSiYeZTmLCLwO+Fg==}
+    peerDependencies:
+      react: '>=16'
+
+  '@iconify/types@2.0.0':
+    resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -4563,6 +4580,17 @@ snapshots:
       '@formatjs/icu-skeleton-parser': 2.1.11
 
   '@formatjs/icu-skeleton-parser@2.1.11': {}
+
+  '@iconify-json/logos@1.2.13':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify/react@6.0.2(react@19.2.8)':
+    dependencies:
+      '@iconify/types': 2.0.0
+      react: 19.2.8
+
+  '@iconify/types@2.0.0': {}
 
   '@img/colour@1.1.0': {}
 

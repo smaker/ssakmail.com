@@ -18,13 +18,15 @@ Create one Google OAuth web client in testing mode and register the owner and de
 - `http://localhost:3000/api/auth/callback/google`
 - `http://localhost:3001/api/auth/callback/google`
 
-Store `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` with `wrangler secret put` for each Worker. Never commit `.dev.vars` or OAuth credentials.
+Store `AUTH_SECRET`, `MAIL_CREDENTIALS_KEY`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` with `wrangler secret put` for each Worker. Never commit `.dev.vars` or OAuth credentials.
+
+Use the same `MAIL_CREDENTIALS_KEY` value in the web and mobile Workers because both read the shared D1 mail-connection ciphertext.
 
 The app requests Google identity scopes at login, then requests `https://mail.google.com/` only when the user connects Gmail. Permanent deletion cannot be undone.
 
 ## Email login and signup
 
-Email accounts are stored in the shared D1 database as PBKDF2 password hashes with per-account salts. Apply migrations `0006_auth_users.sql` and `0007_auth_rate_limits.sql` before deploying both apps. Login and signup attempts are rate-limited per account/source key. The web Worker exposes the signup form at `https://ssakmail.com`; the mobile experience uses `https://m.ssakmail.com`.
+Email accounts and mail connections are stored in the shared D1 database. Apply migrations `0006_auth_users.sql`, `0007_auth_rate_limits.sql`, and `0008_mail_connections.sql` before deploying both apps. Login and signup attempts are rate-limited per account/source key. The web Worker exposes the signup form at `https://ssakmail.com`; the mobile experience uses `https://m.ssakmail.com`.
 
 ## Custom domain
 
@@ -75,7 +77,7 @@ Store `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`, plus `MICROSOFT_TENAN
 
 ## IMAP accounts
 
-Naver, Daum, Kakao and any other IMAP host connect with a mail address and an app password. The password is verified with an IMAP `LOGIN` and then kept only inside the NextAuth session cookie, which is encrypted with `AUTH_SECRET`; it is never written to the database.
+Naver, Daum, Kakao and any other IMAP host connect with a mail address and an app password. Login and mail connections are separate: one signed-in account can keep multiple Google, Microsoft, and IMAP connections in D1. OAuth tokens and IMAP credentials are encrypted with the Worker-only `MAIL_CREDENTIALS_KEY`; they are returned only as connection summaries and are removed when the connection is disconnected.
 
 IMAP needs raw TCP, which exists only in the Cloudflare Workers runtime (`cloudflare:sockets`). `pnpm dev` runs on Node, so IMAP sign-in fails there; use `pnpm --dir apps/web preview` to exercise it locally.
 

@@ -26,11 +26,14 @@ export async function POST(request: NextRequest) {
       { error: "유효한 피드백이 필요합니다." },
       { status: 400 },
     );
-  return preferenceMailRoute(request, async (env, email, mail) =>
+  return preferenceMailRoute(request, async (env, email, mail, connectionId) =>
     recordFeedback(
       env,
       email,
-      await mail.getMessage(body.messageId as string),
+      {
+        ...(await mail.getMessage(body.messageId as string)),
+        preferenceKey: `${connectionId}:${body.messageId as string}`,
+      },
       body.action as FeedbackAction,
     ),
   );

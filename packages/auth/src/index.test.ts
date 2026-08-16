@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   authorizeGoogleToken,
   authorizeMailToken,
+  createAuthOptions,
   GMAIL_SCOPE,
   GRAPH_MAIL_SCOPE,
   hasGmailScope,
@@ -112,5 +113,35 @@ describe("Google OAuth token helpers", () => {
         expiresAt: 0,
       }),
     ).resolves.toMatchObject({ error: "RefreshAccessTokenError" });
+  });
+
+  it("does not persist mailbox credentials without a signed connection intent", async () => {
+    const save = vi.fn();
+    const options = createAuthOptions({
+      mailConnectionStore: {
+        list: vi.fn().mockResolvedValue([]),
+        get: vi.fn(),
+        save,
+        upsert: vi.fn(),
+        delete: vi.fn(),
+      },
+    });
+    const token = await options.callbacks?.jwt?.({
+      token: { email: "login@example.com", name: "Login" },
+      account: {
+        provider: "google",
+        providerAccountId: "google-sub",
+        access_token: "access",
+        scope: `openid email ${GMAIL_SCOPE}`,
+      },
+      user: { email: "login@example.com", name: "Login" },
+    } as never);
+
+    expect(save).not.toHaveBeenCalled();
+    expect(token).toMatchObject({
+      email: "login@example.com",
+      identityKey: "login@example.com",
+    });
+    expect(token?.accessToken).toBeUndefined();
   });
 });
