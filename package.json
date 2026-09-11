@@ -19,7 +19,7 @@
     "@types/react-dom": "^19.2.0",
     "babel-plugin-react-compiler": "1.0.0",
     "typescript": "7.0.2",
-    "vitest": "4.1.10"
+    "vitest": "5.0.0"
   },
   "dependencies": {
     "@astryxdesign/core": "^0.2.0",
